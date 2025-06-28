@@ -1,0 +1,414 @@
+import React, { useState } from 'react';
+import { Package, Clock, CheckCircle, XCircle, Eye, Filter, Search, Lock } from 'lucide-react';
+import { formatDistanceToNow } from 'date-fns';
+import { useAuthStore } from '../../stores/authStore';
+import { Link } from 'react-router-dom';
+
+interface Order {
+  id: string;
+  cropName: string;
+  buyerName: string;
+  buyerPhone: string;
+  orderDate: Date;
+  quantity: number;
+  unit: string;
+  totalPrice: number;
+  status: 'pending' | 'processing' | 'completed' | 'cancelled';
+  deliveryAddress: string;
+}
+
+export const MyOrders: React.FC = () => {
+  const { user } = useAuthStore();
+  const [selectedStatus, setSelectedStatus] = useState<string>('all');
+  const [searchQuery, setSearchQuery] = useState('');
+  const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
+
+  const seller = user as any;
+  const isVerified = seller?.verificationStatus === 'approved';
+
+  // If not verified, show access denied page
+  if (!isVerified) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="bg-white rounded-2xl shadow-xl p-8 max-w-md w-full text-center">
+          <div className="w-16 h-16 bg-yellow-100 rounded-full flex items-center justify-center mx-auto mb-4">
+            <Lock className="text-yellow-600" size={32} />
+          </div>
+          <h2 className="text-2xl font-bold text-gray-900 mb-2">Verification Required</h2>
+          <p className="text-gray-600 mb-6">
+            You need to complete seller verification before accessing order management features.
+          </p>
+          <div className="space-y-3">
+            <Link
+              to="/seller/verification"
+              className="w-full bg-green-500 text-white py-3 px-6 rounded-xl font-semibold hover:bg-green-600 transition-colors inline-block"
+            >
+              Complete Verification
+            </Link>
+            <Link
+              to="/seller/dashboard"
+              className="w-full border border-gray-300 text-gray-700 py-3 px-6 rounded-xl font-semibold hover:bg-gray-50 transition-colors inline-block"
+            >
+              Back to Dashboard
+            </Link>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // Mock orders data (only shown if verified)
+  const orders: Order[] = [
+    {
+      id: 'ORD-001',
+      cropName: 'Premium Rice',
+      buyerName: 'Maria Santos',
+      buyerPhone: '+63 912 345 6789',
+      orderDate: new Date('2024-01-20'),
+      quantity: 50,
+      unit: 'kg',
+      totalPrice: 2250,
+      status: 'pending',
+      deliveryAddress: 'Quezon City, Metro Manila'
+    },
+    {
+      id: 'ORD-002',
+      cropName: 'Sweet Corn',
+      buyerName: 'Juan Dela Cruz',
+      buyerPhone: '+63 923 456 7890',
+      orderDate: new Date('2024-01-18'),
+      quantity: 25,
+      unit: 'kg',
+      totalPrice: 875,
+      status: 'processing',
+      deliveryAddress: 'Marikina City, Metro Manila'
+    },
+    {
+      id: 'ORD-003',
+      cropName: 'Premium Rice',
+      buyerName: 'Ana Rodriguez',
+      buyerPhone: '+63 934 567 8901',
+      orderDate: new Date('2024-01-15'),
+      quantity: 100,
+      unit: 'kg',
+      totalPrice: 4500,
+      status: 'completed',
+      deliveryAddress: 'Pasig City, Metro Manila'
+    }
+  ];
+
+  const getStatusColor = (status: string) => {
+    switch (status) {
+      case 'pending':
+        return 'bg-yellow-100 text-yellow-800';
+      case 'processing':
+        return 'bg-blue-100 text-blue-800';
+      case 'completed':
+        return 'bg-green-100 text-green-800';
+      case 'cancelled':
+        return 'bg-red-100 text-red-800';
+      default:
+        return 'bg-gray-100 text-gray-800';
+    }
+  };
+
+  const getStatusIcon = (status: string) => {
+    switch (status) {
+      case 'pending':
+        return <Clock size={16} className="text-yellow-600" />;
+      case 'processing':
+        return <Package size={16} className="text-blue-600" />;
+      case 'completed':
+        return <CheckCircle size={16} className="text-green-600" />;
+      case 'cancelled':
+        return <XCircle size={16} className="text-red-600" />;
+      default:
+        return <Clock size={16} className="text-gray-600" />;
+    }
+  };
+
+  const filteredOrders = orders.filter(order => {
+    const matchesStatus = selectedStatus === 'all' || order.status === selectedStatus;
+    const matchesSearch = searchQuery === '' || 
+      order.cropName.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      order.buyerName.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      order.id.toLowerCase().includes(searchQuery.toLowerCase());
+    
+    return matchesStatus && matchesSearch;
+  });
+
+  const updateOrderStatus = (orderId: string, newStatus: 'processing' | 'completed') => {
+    // In a real app, this would make an API call
+    console.log(`Updating order ${orderId} to ${newStatus}`);
+  };
+
+  const stats = [
+    {
+      title: 'Total Orders',
+      value: orders.length,
+      icon: Package,
+      color: 'bg-blue-500'
+    },
+    {
+      title: 'Pending',
+      value: orders.filter(o => o.status === 'pending').length,
+      icon: Clock,
+      color: 'bg-yellow-500'
+    },
+    {
+      title: 'Processing',
+      value: orders.filter(o => o.status === 'processing').length,
+      icon: Package,
+      color: 'bg-blue-500'
+    },
+    {
+      title: 'Completed',
+      value: orders.filter(o => o.status === 'completed').length,
+      icon: CheckCircle,
+      color: 'bg-green-500'
+    }
+  ];
+
+  return (
+    <div className="min-h-screen bg-gray-50">
+      {/* Header */}
+      <div className="bg-white shadow-sm border-b">
+        <div className="max-w-7xl mx-auto px-4 py-6">
+          <div className="flex items-center justify-between">
+            <div>
+              <h1 className="text-3xl font-bold text-gray-900">My Orders</h1>
+              <p className="text-gray-600 mt-1">Manage your crop orders and deliveries</p>
+              <div className="flex items-center space-x-2 mt-2">
+                <div className="w-4 h-4 bg-green-500 rounded-full"></div>
+                <span className="text-green-600 text-sm font-medium">Verified Seller</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div className="max-w-7xl mx-auto px-4 py-8">
+        {/* Stats */}
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
+          {stats.map((stat, index) => (
+            <div key={index} className="bg-white rounded-xl p-6 shadow-sm border border-gray-100">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-gray-600 text-sm font-medium">{stat.title}</p>
+                  <p className="text-2xl font-bold text-gray-900 mt-1">{stat.value}</p>
+                </div>
+                <div className={`${stat.color} p-3 rounded-lg`}>
+                  <stat.icon size={24} className="text-white" />
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+
+        {/* Filters and Search */}
+        <div className="bg-white rounded-xl shadow-sm border border-gray-100 mb-6">
+          <div className="p-6">
+            <div className="flex flex-col md:flex-row gap-4">
+              <div className="flex-1">
+                <div className="relative">
+                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={20} />
+                  <input
+                    type="text"
+                    placeholder="Search orders..."
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
+                  />
+                </div>
+              </div>
+              
+              <div className="flex items-center space-x-2">
+                <Filter size={20} className="text-gray-400" />
+                <select
+                  value={selectedStatus}
+                  onChange={(e) => setSelectedStatus(e.target.value)}
+                  className="border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-green-500 focus:border-transparent"
+                >
+                  <option value="all">All Status</option>
+                  <option value="pending">Pending</option>
+                  <option value="processing">Processing</option>
+                  <option value="completed">Completed</option>
+                  <option value="cancelled">Cancelled</option>
+                </select>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Orders List */}
+        <div className="bg-white rounded-xl shadow-sm border border-gray-100">
+          <div className="p-6 border-b border-gray-200">
+            <h2 className="text-xl font-semibold text-gray-900">
+              Orders ({filteredOrders.length})
+            </h2>
+          </div>
+
+          <div className="divide-y divide-gray-200">
+            {filteredOrders.length === 0 ? (
+              <div className="p-12 text-center">
+                <Package className="mx-auto h-12 w-12 text-gray-400 mb-4" />
+                <h3 className="text-lg font-semibold text-gray-900 mb-2">No orders found</h3>
+                <p className="text-gray-600">
+                  {searchQuery || selectedStatus !== 'all' 
+                    ? 'Try adjusting your search or filters'
+                    : 'Orders from buyers will appear here'
+                  }
+                </p>
+              </div>
+            ) : (
+              filteredOrders.map((order) => (
+                <div key={order.id} className="p-6 hover:bg-gray-50 transition-colors">
+                  <div className="flex items-center justify-between">
+                    <div className="flex-1">
+                      <div className="flex items-center space-x-4 mb-2">
+                        <h3 className="text-lg font-semibold text-gray-900">
+                          {order.cropName}
+                        </h3>
+                        <span className={`inline-flex items-center space-x-1 px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(order.status)}`}>
+                          {getStatusIcon(order.status)}
+                          <span className="capitalize">{order.status}</span>
+                        </span>
+                      </div>
+                      
+                      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm text-gray-600">
+                        <div>
+                          <p><strong>Order ID:</strong> {order.id}</p>
+                          <p><strong>Buyer:</strong> {order.buyerName}</p>
+                        </div>
+                        <div>
+                          <p><strong>Quantity:</strong> {order.quantity} {order.unit}</p>
+                          <p><strong>Total:</strong> ₱{order.totalPrice.toLocaleString()}</p>
+                        </div>
+                        <div>
+                          <p><strong>Order Date:</strong> {order.orderDate.toLocaleDateString()}</p>
+                          <p><strong>Delivery:</strong> {order.deliveryAddress}</p>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center space-x-2 ml-4">
+                      <button
+                        onClick={() => setSelectedOrder(order)}
+                        className="flex items-center space-x-1 bg-gray-100 text-gray-700 px-3 py-2 rounded-lg hover:bg-gray-200 transition-colors"
+                      >
+                        <Eye size={16} />
+                        <span>View</span>
+                      </button>
+                      
+                      {order.status === 'pending' && (
+                        <button
+                          onClick={() => updateOrderStatus(order.id, 'processing')}
+                          className="bg-blue-500 text-white px-3 py-2 rounded-lg hover:bg-blue-600 transition-colors"
+                        >
+                          Start Processing
+                        </button>
+                      )}
+                      
+                      {order.status === 'processing' && (
+                        <button
+                          onClick={() => updateOrderStatus(order.id, 'completed')}
+                          className="bg-green-500 text-white px-3 py-2 rounded-lg hover:bg-green-600 transition-colors"
+                        >
+                          Mark as Delivered
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              ))
+            )}
+          </div>
+        </div>
+      </div>
+
+      {/* Order Detail Modal */}
+      {selectedOrder && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+          <div className="bg-white rounded-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+            <div className="p-6 border-b border-gray-200">
+              <div className="flex items-center justify-between">
+                <h2 className="text-2xl font-bold text-gray-900">Order Details</h2>
+                <button
+                  onClick={() => setSelectedOrder(null)}
+                  className="text-gray-400 hover:text-gray-600"
+                >
+                  ✕
+                </button>
+              </div>
+            </div>
+            
+            <div className="p-6 space-y-6">
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <h3 className="font-semibold text-gray-900 mb-2">Order Information</h3>
+                  <div className="space-y-2 text-sm">
+                    <p><strong>Order ID:</strong> {selectedOrder.id}</p>
+                    <p><strong>Crop:</strong> {selectedOrder.cropName}</p>
+                    <p><strong>Quantity:</strong> {selectedOrder.quantity} {selectedOrder.unit}</p>
+                    <p><strong>Total Price:</strong> ₱{selectedOrder.totalPrice.toLocaleString()}</p>
+                    <p><strong>Order Date:</strong> {selectedOrder.orderDate.toLocaleDateString()}</p>
+                  </div>
+                </div>
+                
+                <div>
+                  <h3 className="font-semibold text-gray-900 mb-2">Buyer Information</h3>
+                  <div className="space-y-2 text-sm">
+                    <p><strong>Name:</strong> {selectedOrder.buyerName}</p>
+                    <p><strong>Phone:</strong> {selectedOrder.buyerPhone}</p>
+                    <p><strong>Delivery Address:</strong> {selectedOrder.deliveryAddress}</p>
+                  </div>
+                </div>
+              </div>
+
+              <div>
+                <h3 className="font-semibold text-gray-900 mb-2">Status</h3>
+                <span className={`inline-flex items-center space-x-1 px-3 py-1 rounded-full text-sm font-medium ${getStatusColor(selectedOrder.status)}`}>
+                  {getStatusIcon(selectedOrder.status)}
+                  <span className="capitalize">{selectedOrder.status}</span>
+                </span>
+              </div>
+
+              <div className="flex space-x-3">
+                {selectedOrder.status === 'pending' && (
+                  <button
+                    onClick={() => {
+                      updateOrderStatus(selectedOrder.id, 'processing');
+                      setSelectedOrder(null);
+                    }}
+                    className="flex-1 bg-blue-500 text-white py-3 px-4 rounded-lg font-medium hover:bg-blue-600 transition-colors"
+                  >
+                    Start Processing
+                  </button>
+                )}
+                
+                {selectedOrder.status === 'processing' && (
+                  <button
+                    onClick={() => {
+                      updateOrderStatus(selectedOrder.id, 'completed');
+                      setSelectedOrder(null);
+                    }}
+                    className="flex-1 bg-green-500 text-white py-3 px-4 rounded-lg font-medium hover:bg-green-600 transition-colors"
+                  >
+                    Mark as Delivered
+                  </button>
+                )}
+                
+                <button
+                  onClick={() => setSelectedOrder(null)}
+                  className="flex-1 border border-gray-300 text-gray-700 py-3 px-4 rounded-lg font-medium hover:bg-gray-50 transition-colors"
+                >
+                  Close
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};
