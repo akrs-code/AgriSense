@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Plus, Edit, Trash2, Eye, MapPin, Calendar, Package, TrendingUp, Lock } from 'lucide-react';
+import { Plus, Edit, Trash2, Eye, Package, TrendingUp, Lock } from 'lucide-react';
 import { useProductStore } from '../../stores/productStore';
 import { useAuthStore } from '../../stores/authStore';
 import { ProductCard } from '../common/ProductCard';

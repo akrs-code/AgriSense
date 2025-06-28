@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { AlertTriangle, User, Package, MessageSquare, Eye, CheckCircle, Flag, Ban, Search } from 'lucide-react';
+import { AlertTriangle, User, Package, MessageSquare, Eye, CheckCircle, Flag, Search } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 
 interface Report {

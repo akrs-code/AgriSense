@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Star, User, Filter, TrendingUp } from 'lucide-react';
+import { Star, User, Calendar, Filter, TrendingUp, Flag } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 
 interface Review {
@@ -15,8 +15,10 @@ interface Review {
 export const RatingsReviews: React.FC = () => {
   const [filterRating, setFilterRating] = useState<number | null>(null);
   const [filterCrop, setFilterCrop] = useState<string>('all');
+  const [showReportModal, setShowReportModal] = useState(false);
+  const [selectedReview, setSelectedReview] = useState<Review | null>(null);
+  const [reportForm, setReportForm] = useState({ reason: '', comment: '' });
 
-  // Mock reviews data
   const reviews: Review[] = [
     {
       id: '1',
@@ -73,19 +75,17 @@ export const RatingsReviews: React.FC = () => {
     return matchesRating && matchesCrop;
   });
 
-  const renderStars = (rating: number, size: number = 16) => {
-    return (
-      <div className="flex items-center space-x-1">
-        {[1, 2, 3, 4, 5].map((star) => (
-          <Star
-            key={star}
-            size={size}
-            className={star <= rating ? 'text-yellow-400 fill-current' : 'text-gray-300'}
-          />
-        ))}
-      </div>
-    );
-  };
+  const renderStars = (rating: number, size: number = 16) => (
+    <div className="flex items-center space-x-1">
+      {[1, 2, 3, 4, 5].map(star => (
+        <Star
+          key={star}
+          size={size}
+          className={star <= rating ? 'text-yellow-400 fill-current' : 'text-gray-300'}
+        />
+      ))}
+    </div>
+  );
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -102,20 +102,14 @@ export const RatingsReviews: React.FC = () => {
         <div className="bg-white rounded-xl shadow-sm border border-gray-100 mb-8">
           <div className="p-6">
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-              {/* Overall Rating */}
-              <div className="mt-8 text-center">
-                <div className="text-6xl font-bold text-gray-900 mb-2">
-                  {averageRating.toFixed(1)}
-                </div>
+              <div className="text-center mt-8">
+                <div className="text-6xl font-bold text-gray-900 mb-2">{averageRating.toFixed(1)}</div>
                 <div className="flex items-center justify-center mb-2">
                   {renderStars(Math.round(averageRating), 24)}
                 </div>
-                <p className="text-gray-600">
-                  Based on {totalReviews} reviews
-                </p>
+                <p className="text-gray-600">Based on {totalReviews} reviews</p>
               </div>
 
-              {/* Rating Distribution */}
               <div className="lg:col-span-2">
                 <h3 className="font-semibold text-gray-900 mb-4">Rating Distribution</h3>
                 <div className="space-y-3">
@@ -140,7 +134,7 @@ export const RatingsReviews: React.FC = () => {
           </div>
         </div>
 
-        {/* Stats Cards */}
+        {/* Stats */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
           <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-100">
             <div className="flex items-center justify-between">
@@ -187,39 +181,33 @@ export const RatingsReviews: React.FC = () => {
 
         {/* Filters */}
         <div className="bg-white rounded-xl shadow-sm border border-gray-100 mb-6">
-          <div className="p-6">
-            <div className="flex flex-col md:flex-row gap-4">
-              <div className="flex items-center space-x-2">
-                <Filter size={20} className="text-gray-400" />
-                <span className="text-sm font-medium text-gray-700">Filter by:</span>
-              </div>
-              
-              <div className="flex flex-wrap gap-2">
-                <select
-                  value={filterRating || ''}
-                  onChange={(e) => setFilterRating(e.target.value ? parseInt(e.target.value) : null)}
-                  className="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-green-500 focus:border-transparent"
-                >
-                  <option value="">All Ratings</option>
-                  <option value="5">5 Stars</option>
-                  <option value="4">4 Stars</option>
-                  <option value="3">3 Stars</option>
-                  <option value="2">2 Stars</option>
-                  <option value="1">1 Star</option>
-                </select>
+          <div className="p-6 flex flex-col md:flex-row gap-4">
+            <div className="flex items-center space-x-2">
+              <Filter size={20} className="text-gray-400" />
+              <span className="text-sm font-medium text-gray-700">Filter by:</span>
+            </div>
 
-                <select
-                  value={filterCrop}
-                  onChange={(e) => setFilterCrop(e.target.value)}
-                  className="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-green-500 focus:border-transparent"
-                >
-                  {crops.map(crop => (
-                    <option key={crop} value={crop}>
-                      {crop === 'all' ? 'All Crops' : crop}
-                    </option>
-                  ))}
-                </select>
-              </div>
+            <div className="flex flex-wrap gap-2">
+              <select
+                value={filterRating || ''}
+                onChange={(e) => setFilterRating(e.target.value ? parseInt(e.target.value) : null)}
+                className="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-green-500"
+              >
+                <option value="">All Ratings</option>
+                {[5, 4, 3, 2, 1].map(r => <option key={r} value={r}>{r} Stars</option>)}
+              </select>
+
+              <select
+                value={filterCrop}
+                onChange={(e) => setFilterCrop(e.target.value)}
+                className="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-green-500"
+              >
+                {crops.map(crop => (
+                  <option key={crop} value={crop}>
+                    {crop === 'all' ? 'All Crops' : crop}
+                  </option>
+                ))}
+              </select>
             </div>
           </div>
         </div>
@@ -237,9 +225,7 @@ export const RatingsReviews: React.FC = () => {
               <div className="p-12 text-center">
                 <Star className="mx-auto h-12 w-12 text-gray-400 mb-4" />
                 <h3 className="text-lg font-semibold text-gray-900 mb-2">No reviews found</h3>
-                <p className="text-gray-600">
-                  Try adjusting your filters to see more reviews.
-                </p>
+                <p className="text-gray-600">Try adjusting your filters to see more reviews.</p>
               </div>
             ) : (
               filteredReviews.map((review) => (
@@ -248,7 +234,7 @@ export const RatingsReviews: React.FC = () => {
                     <div className="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center">
                       <User size={20} className="text-blue-600" />
                     </div>
-                    
+
                     <div className="flex-1">
                       <div className="flex items-center justify-between mb-2">
                         <div>
@@ -269,8 +255,22 @@ export const RatingsReviews: React.FC = () => {
                           </p>
                         </div>
                       </div>
-                      
+
                       <p className="text-gray-700 leading-relaxed">{review.comment}</p>
+
+                      <div className="flex justify-end mt-4">
+                        <button
+                          onClick={() => {
+                            setSelectedReview(review);
+                            setReportForm({ reason: '', comment: '' });
+                            setShowReportModal(true);
+                          }}
+                          className="flex items-center text-red-600 hover:text-red-800 text-sm font-medium"
+                        >
+                          <Flag className="mr-1 w-4 h-4" />
+                          Report
+                        </button>
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -279,6 +279,76 @@ export const RatingsReviews: React.FC = () => {
           </div>
         </div>
       </div>
+
+      {/* Report Modal */}
+      {showReportModal && selectedReview && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl max-w-md w-full">
+            <div className="p-6 border-b border-gray-200">
+              <h2 className="text-xl font-bold text-gray-900">Report Review</h2>
+              <p className="text-gray-600 mt-1">From {selectedReview.buyerName} on {selectedReview.cropName}</p>
+            </div>
+
+            <form
+              onSubmit={(e) => {
+                e.preventDefault();
+                console.log('Report submitted:', {
+                  reviewId: selectedReview.id,
+                  ...reportForm
+                });
+                setShowReportModal(false);
+              }}
+              className="p-6 space-y-4"
+            >
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Reason for reporting
+                </label>
+                <select
+                  value={reportForm.reason}
+                  onChange={(e) => setReportForm({ ...reportForm, reason: e.target.value })}
+                  required
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500"
+                >
+                  <option value="">Select a reason</option>
+                  <option value="inappropriate">Inappropriate Content</option>
+                  <option value="false information">False Information</option>
+                  <option value="spam">Spam or Fake Review</option>
+                  <option value="other">Other</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Additional Comments (optional)
+                </label>
+                <textarea
+                  value={reportForm.comment}
+                  onChange={(e) => setReportForm({ ...reportForm, comment: e.target.value })}
+                  rows={4}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500"
+                />
+              </div>
+
+              <div className="flex space-x-3">
+                <button
+                  type="submit"
+                  className="flex-1 bg-red-600 text-white py-3 px-4 rounded-lg font-medium hover:bg-red-700"
+                >
+                  Submit Report
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setShowReportModal(false)}
+                  className="flex-1 border border-gray-300 text-gray-700 py-3 px-4 rounded-lg font-medium hover:bg-gray-50"
+                >
+                  Cancel
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
