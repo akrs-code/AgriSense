@@ -5,6 +5,8 @@ import { useAuthStore } from '../../stores/authStore';
 import { useOrderStore, Order } from '../../stores/orderStore';
 import { useCartStore } from '../../stores/cartStore';
 import { useProductStore } from '../../stores/productStore';
+import { useReviewStore } from '../../stores/reviewStore';
+import { ReviewModal } from './ReviewModal';
 import toast from 'react-hot-toast';
 
 const StatusBadge = ({ status }: { status: string }) => {
@@ -66,17 +68,20 @@ const ReorderConfirmationModal: React.FC<ReorderConfirmationModalProps> = ({
 export const BuyerDashboard: React.FC = () => {
   const { user } = useAuthStore();
   const { orders, getOrdersByBuyer } = useOrderStore();
-  const { addToCart } = useCartStore();
+  const { addToCart, forceAddToCart } = useCartStore();
   const { products } = useProductStore();
+  const { hasReviewed } = useReviewStore();
   const [showReorderModal, setShowReorderModal] = useState(false);
   const [pendingReorder, setPendingReorder] = useState<{ order: Order; product: any } | null>(null);
+  const [showReviewModal, setShowReviewModal] = useState(false);
+  const [reviewingOrder, setReviewingOrder] = useState<Order | null>(null);
 
   const buyerOrders = user ? getOrdersByBuyer(user.id) : [];
   const recentOrders = buyerOrders.slice(0, 5); // Show only 5 most recent
 
   const totalOrders = buyerOrders.length;
   const pending = buyerOrders.filter((o) => o.status === 'pending').length;
-  const reviewsGiven = buyerOrders.filter((o) => o.canReview && o.status === 'delivered').length;
+  const reviewsGiven = buyerOrders.filter((o) => hasReviewed(o.id)).length;
 
   const handleReorder = async (order: Order) => {
     // Find the product in the store
@@ -113,7 +118,7 @@ export const BuyerDashboard: React.FC = () => {
     try {
       // Force add to cart (increment quantity)
       const { product } = pendingReorder;
-      await addToCart(product, 1);
+      await forceAddToCart(product, 1);
       toast.success(`${product.name} added to cart again!`);
     } catch (error) {
       toast.error('Failed to add product to cart');
@@ -126,6 +131,20 @@ export const BuyerDashboard: React.FC = () => {
   const handleCloseReorderModal = () => {
     setShowReorderModal(false);
     setPendingReorder(null);
+  };
+
+  const handleOpenReviewModal = (order: Order) => {
+    setReviewingOrder(order);
+    setShowReviewModal(true);
+  };
+
+  const handleCloseReviewModal = () => {
+    setShowReviewModal(false);
+    setReviewingOrder(null);
+  };
+
+  const handleReviewSuccess = () => {
+    toast.success('Review submitted successfully!');
   };
 
   return (
@@ -195,55 +214,65 @@ export const BuyerDashboard: React.FC = () => {
             </Link>
           </div>
         ) : (
-          recentOrders.map((order) => (
-            <div
-              key={order.id}
-              className="bg-white rounded-xl border border-gray-100 p-6 shadow-sm flex flex-col md:flex-row justify-between items-start md:items-center"
-            >
-              <div className="flex items-start space-x-4 flex-1">
-                <img
-                  src={order.productImage}
-                  alt={order.productName}
-                  className="w-16 h-16 rounded-lg object-cover"
-                />
-                <div className="flex-1 space-y-2">
-                  <h3 className="text-lg font-semibold text-gray-900">{order.productName}</h3>
-                  <p className="text-sm text-gray-700">
-                    From <span className="font-medium text-green-700">{order.sellerName}</span>
-                  </p>
-                  <p className="text-sm text-gray-600 flex items-center gap-1">
-                    <MapPin size={14} className="text-gray-400" />
-                    {order.deliveryAddress}
-                  </p>
-                  <p className="text-sm text-gray-600">
-                    Quantity: {order.quantity} {order.unit} • ₱{order.totalPrice.toLocaleString()}
-                  </p>
+          recentOrders.map((order) => {
+            const orderHasReview = hasReviewed(order.id);
+            const canReview = order.status === 'delivered' && !orderHasReview;
+            
+            return (
+              <div
+                key={order.id}
+                className="bg-white rounded-xl border border-gray-100 p-6 shadow-sm flex flex-col md:flex-row justify-between items-start md:items-center"
+              >
+                <div className="flex items-start space-x-4 flex-1">
+                  <img
+                    src={order.productImage}
+                    alt={order.productName}
+                    className="w-16 h-16 rounded-lg object-cover"
+                  />
+                  <div className="flex-1 space-y-2">
+                    <h3 className="text-lg font-semibold text-gray-900">{order.productName}</h3>
+                    <p className="text-sm text-gray-700">
+                      From <span className="font-medium text-green-700">{order.sellerName}</span>
+                    </p>
+                    <p className="text-sm text-gray-600 flex items-center gap-1">
+                      <MapPin size={14} className="text-gray-400" />
+                      {order.deliveryAddress}
+                    </p>
+                    <p className="text-sm text-gray-600">
+                      Quantity: {order.quantity} {order.unit} • ₱{order.totalPrice.toLocaleString()}
+                    </p>
+                  </div>
+                </div>
+                
+                <div className="mt-4 md:mt-0 flex flex-col md:items-end space-y-2">
+                  <StatusBadge status={order.status} />
+                  <div className="flex items-center space-x-2">
+                    {canReview && (
+                      <button
+                        onClick={() => handleOpenReviewModal(order)}
+                        className="inline-flex items-center text-sm text-yellow-600 hover:text-yellow-800 font-medium"
+                      >
+                        <Star size={16} className="mr-1" /> Leave Review
+                      </button>
+                    )}
+                    {orderHasReview && order.status === 'delivered' && (
+                      <span className="inline-flex items-center text-sm text-green-600 font-medium">
+                        <Star size={16} className="mr-1 fill-current" /> Reviewed
+                      </span>
+                    )}
+                    {order.canReorder && (
+                      <button
+                        onClick={() => handleReorder(order)}
+                        className="inline-flex items-center text-sm text-green-600 hover:text-green-800 font-medium"
+                      >
+                        <RotateCcw size={16} className="mr-1" /> Reorder
+                      </button>
+                    )}
+                  </div>
                 </div>
               </div>
-              
-              <div className="mt-4 md:mt-0 flex flex-col md:items-end space-y-2">
-                <StatusBadge status={order.status} />
-                <div className="flex items-center space-x-2">
-                  {order.status === 'delivered' && order.canReview && (
-                    <Link
-                      to={`/reviews/new?orderId=${order.id}`}
-                      className="inline-flex items-center text-sm text-yellow-600 hover:text-yellow-800 font-medium"
-                    >
-                      <Star size={16} className="mr-1" /> Leave Review
-                    </Link>
-                  )}
-                  {order.canReorder && (
-                    <button
-                      onClick={() => handleReorder(order)}
-                      className="inline-flex items-center text-sm text-green-600 hover:text-green-800 font-medium"
-                    >
-                      <RotateCcw size={16} className="mr-1" /> Reorder
-                    </button>
-                  )}
-                </div>
-              </div>
-            </div>
-          ))
+            );
+          })
         )}
       </div>
 
@@ -254,6 +283,16 @@ export const BuyerDashboard: React.FC = () => {
         onConfirm={handleConfirmReorder}
         productName={pendingReorder?.product?.name || ''}
       />
+
+      {/* Review Modal */}
+      {showReviewModal && reviewingOrder && (
+        <ReviewModal
+          isOpen={showReviewModal}
+          onClose={handleCloseReviewModal}
+          order={reviewingOrder}
+          onSuccess={handleReviewSuccess}
+        />
+      )}
     </div>
   );
 };

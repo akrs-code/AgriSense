@@ -5,6 +5,8 @@ import { useAuthStore } from '../../stores/authStore';
 import { useOrderStore, Order } from '../../stores/orderStore';
 import { useCartStore } from '../../stores/cartStore';
 import { useProductStore } from '../../stores/productStore';
+import { useReviewStore } from '../../stores/reviewStore';
+import { ReviewModal } from './ReviewModal';
 import toast from 'react-hot-toast';
 
 interface ReorderConfirmationModalProps {
@@ -53,11 +55,14 @@ export const MyOrders: React.FC = () => {
   const { orders, getOrdersByBuyer, updateOrderStatus, isLoading } = useOrderStore();
   const { addToCart } = useCartStore();
   const { products } = useProductStore();
+  const { hasReviewed } = useReviewStore();
   const [selectedStatus, setSelectedStatus] = useState<string>('all');
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
   const [showReorderModal, setShowReorderModal] = useState(false);
   const [pendingReorder, setPendingReorder] = useState<{ order: Order; product: any } | null>(null);
+  const [showReviewModal, setShowReviewModal] = useState(false);
+  const [reviewingOrder, setReviewingOrder] = useState<Order | null>(null);
 
   const buyerOrders = user ? getOrdersByBuyer(user.id) : [];
 
@@ -153,6 +158,25 @@ export const MyOrders: React.FC = () => {
   const handleCloseReorderModal = () => {
     setShowReorderModal(false);
     setPendingReorder(null);
+  };
+
+  const handleOpenReviewModal = (order: Order) => {
+    setReviewingOrder(order);
+    setShowReviewModal(true);
+  };
+
+  const handleCloseReviewModal = () => {
+    setShowReviewModal(false);
+    setReviewingOrder(null);
+  };
+
+  const handleReviewSuccess = () => {
+    // Update the order to mark it as reviewed
+    if (reviewingOrder) {
+      // In a real app, you'd update the order in the backend
+      // For now, we'll just close the modal and show success
+      toast.success('Review submitted successfully!');
+    }
   };
 
   const stats = [
@@ -260,82 +284,97 @@ export const MyOrders: React.FC = () => {
               </p>
             </div>
           ) : (
-            filteredOrders.map((order) => (
-              <div key={order.id} className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
-                <div className="flex items-start justify-between mb-4">
-                  <div className="flex items-start space-x-4 flex-1">
-                    <img
-                      src={order.productImage}
-                      alt={order.productName}
-                      className="w-20 h-20 rounded-lg object-cover"
-                    />
-                    <div className="flex-1">
-                      <div className="flex items-center space-x-3 mb-2">
-                        <h3 className="text-lg font-semibold text-gray-900">
-                          {order.productName}
-                        </h3>
-                        <span className={`inline-flex items-center space-x-1 px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(order.status)}`}>
-                          {getStatusIcon(order.status)}
-                          <span className="capitalize">{order.status}</span>
-                        </span>
-                      </div>
-                      
-                      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm text-gray-600">
-                        <div>
-                          <p><strong>Order ID:</strong> {order.id}</p>
-                          <p><strong>Seller:</strong> {order.sellerName}</p>
+            filteredOrders.map((order) => {
+              const orderHasReview = hasReviewed(order.id);
+              const canReview = order.status === 'delivered' && !orderHasReview;
+              
+              return (
+                <div key={order.id} className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
+                  <div className="flex items-start justify-between mb-4">
+                    <div className="flex items-start space-x-4 flex-1">
+                      <img
+                        src={order.productImage}
+                        alt={order.productName}
+                        className="w-20 h-20 rounded-lg object-cover"
+                      />
+                      <div className="flex-1">
+                        <div className="flex items-center space-x-3 mb-2">
+                          <h3 className="text-lg font-semibold text-gray-900">
+                            {order.productName}
+                          </h3>
+                          <span className={`inline-flex items-center space-x-1 px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(order.status)}`}>
+                            {getStatusIcon(order.status)}
+                            <span className="capitalize">{order.status}</span>
+                          </span>
                         </div>
-                        <div>
-                          <p><strong>Quantity:</strong> {order.quantity} {order.unit}</p>
-                          <p><strong>Total:</strong> ₱{order.totalPrice.toLocaleString()}</p>
+                        
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm text-gray-600">
+                          <div>
+                            <p><strong>Order ID:</strong> {order.id}</p>
+                            <p><strong>Seller:</strong> {order.sellerName}</p>
+                          </div>
+                          <div>
+                            <p><strong>Quantity:</strong> {order.quantity} {order.unit}</p>
+                            <p><strong>Total:</strong> ₱{order.totalPrice.toLocaleString()}</p>
+                          </div>
+                          <div>
+                            <p><strong>Order Date:</strong> {order.orderDate.toLocaleDateString()}</p>
+                            {order.estimatedDelivery && (
+                              <p><strong>Est. Delivery:</strong> {order.estimatedDelivery.toLocaleDateString()}</p>
+                            )}
+                          </div>
                         </div>
-                        <div>
-                          <p><strong>Order Date:</strong> {order.orderDate.toLocaleDateString()}</p>
-                          {order.estimatedDelivery && (
-                            <p><strong>Est. Delivery:</strong> {order.estimatedDelivery.toLocaleDateString()}</p>
-                          )}
-                        </div>
-                      </div>
 
-                      {order.trackingNumber && (
-                        <div className="mt-3 p-3 bg-blue-50 rounded-lg">
-                          <p className="text-sm text-blue-800">
-                            <strong>Tracking Number:</strong> {order.trackingNumber}
-                          </p>
+                        {order.trackingNumber && (
+                          <div className="mt-3 p-3 bg-blue-50 rounded-lg">
+                            <p className="text-sm text-blue-800">
+                              <strong>Tracking Number:</strong> {order.trackingNumber}
+                            </p>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+
+                    <div className="flex flex-col space-y-2 ml-4">
+                      <button
+                        onClick={() => setSelectedOrder(order)}
+                        className="flex items-center space-x-1 bg-gray-100 text-gray-700 px-3 py-2 rounded-lg hover:bg-gray-200 transition-colors"
+                      >
+                        <Eye size={16} />
+                        <span>View Details</span>
+                      </button>
+                      
+                      {order.canReorder && (
+                        <button
+                          onClick={() => handleReorder(order)}
+                          className="flex items-center space-x-1 bg-green-100 text-green-700 px-3 py-2 rounded-lg hover:bg-green-200 transition-colors"
+                        >
+                          <RotateCcw size={16} />
+                          <span>Reorder</span>
+                        </button>
+                      )}
+                      
+                      {canReview && (
+                        <button
+                          onClick={() => handleOpenReviewModal(order)}
+                          className="flex items-center space-x-1 bg-yellow-100 text-yellow-700 px-3 py-2 rounded-lg hover:bg-yellow-200 transition-colors"
+                        >
+                          <Star size={16} />
+                          <span>Review</span>
+                        </button>
+                      )}
+
+                      {orderHasReview && order.status === 'delivered' && (
+                        <div className="flex items-center space-x-1 text-green-600 px-3 py-2 text-sm">
+                          <CheckCircle size={16} />
+                          <span>Reviewed</span>
                         </div>
                       )}
                     </div>
                   </div>
-
-                  <div className="flex flex-col space-y-2 ml-4">
-                    <button
-                      onClick={() => setSelectedOrder(order)}
-                      className="flex items-center space-x-1 bg-gray-100 text-gray-700 px-3 py-2 rounded-lg hover:bg-gray-200 transition-colors"
-                    >
-                      <Eye size={16} />
-                      <span>View Details</span>
-                    </button>
-                    
-                    {order.canReorder && (
-                      <button
-                        onClick={() => handleReorder(order)}
-                        className="flex items-center space-x-1 bg-green-100 text-green-700 px-3 py-2 rounded-lg hover:bg-green-200 transition-colors"
-                      >
-                        <RotateCcw size={16} />
-                        <span>Reorder</span>
-                      </button>
-                    )}
-                    
-                    {order.canReview && order.status === 'delivered' && (
-                      <button className="flex items-center space-x-1 bg-yellow-100 text-yellow-700 px-3 py-2 rounded-lg hover:bg-yellow-200 transition-colors">
-                        <Star size={16} />
-                        <span>Review</span>
-                      </button>
-                    )}
-                  </div>
                 </div>
-              </div>
-            ))
+              );
+            })
           )}
         </div>
       </div>
@@ -425,6 +464,16 @@ export const MyOrders: React.FC = () => {
         onConfirm={handleConfirmReorder}
         productName={pendingReorder?.product?.name || ''}
       />
+
+      {/* Review Modal */}
+      {showReviewModal && reviewingOrder && (
+        <ReviewModal
+          isOpen={showReviewModal}
+          onClose={handleCloseReviewModal}
+          order={reviewingOrder}
+          onSuccess={handleReviewSuccess}
+        />
+      )}
     </div>
   );
 };
