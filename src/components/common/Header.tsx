@@ -9,10 +9,12 @@ import {
   Sprout
 } from 'lucide-react';
 import { useAuthStore } from '../../stores/authStore';
+import { useCartStore } from '../../stores/cartStore';
 import { Link } from 'react-router-dom';
 
 export const Header: React.FC = () => {
   const { user, logout } = useAuthStore();
+  const { totalItems } = useCartStore();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [showUserMenu, setShowUserMenu] = useState(false);
 
@@ -63,7 +65,11 @@ export const Header: React.FC = () => {
             {user?.role === 'buyer' && (
               <Link to="/buyer/cart" className="p-2 rounded-md text-gray-600 hover:bg-gray-100 relative">
                 <ShoppingCart size={20} />
-                <span className="absolute -top-1 -right-1 w-4 h-4 bg-green-500 text-white text-xs rounded-full flex items-center justify-center">3</span>
+                {totalItems > 0 && (
+                  <span className="absolute -top-1 -right-1 w-5 h-5 bg-green-500 text-white text-xs rounded-full flex items-center justify-center font-medium">
+                    {totalItems > 99 ? '99+' : totalItems}
+                  </span>
+                )}
               </Link>
             )}
 
@@ -88,18 +94,32 @@ export const Header: React.FC = () => {
                   <Link
                     to="/profile"
                     className="block px-4 py-2 text-sm text-gray-800 hover:bg-gray-100"
+                    onClick={() => setShowUserMenu(false)}
                   >
                     Profile Settings
                   </Link>
                   <Link
                     to="/orders"
                     className="block px-4 py-2 text-sm text-gray-800 hover:bg-gray-100"
+                    onClick={() => setShowUserMenu(false)}
                   >
                     My Orders
                   </Link>
+                  {user?.role === 'buyer' && (
+                    <Link
+                      to="/buyer/cart"
+                      className="block px-4 py-2 text-sm text-gray-800 hover:bg-gray-100"
+                      onClick={() => setShowUserMenu(false)}
+                    >
+                      Cart ({totalItems})
+                    </Link>
+                  )}
                   <hr className="my-1" />
                   <button
-                    onClick={logout}
+                    onClick={() => {
+                      logout();
+                      setShowUserMenu(false);
+                    }}
                     className="block w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-gray-100"
                   >
                     Sign Out
@@ -142,7 +162,7 @@ export const Header: React.FC = () => {
                 className="py-2 text-sm text-gray-800 hover:bg-gray-100 rounded"
                 onClick={() => setIsMenuOpen(false)}
               >
-                Cart
+                Cart ({totalItems})
               </Link>
             )}
             <Link
