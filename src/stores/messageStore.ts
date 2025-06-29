@@ -153,6 +153,38 @@ const mockMessages: { [key: string]: Message[] } = {
   ]
 };
 
+// Helper function to convert date strings back to Date objects
+const reviveDates = (obj: any): any => {
+  if (obj === null || obj === undefined) return obj;
+  
+  if (typeof obj === 'string') {
+    // Check if string looks like an ISO date
+    const dateRegex = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}/;
+    if (dateRegex.test(obj)) {
+      return new Date(obj);
+    }
+    return obj;
+  }
+  
+  if (Array.isArray(obj)) {
+    return obj.map(reviveDates);
+  }
+  
+  if (typeof obj === 'object') {
+    const result: any = {};
+    for (const key in obj) {
+      if (key === 'updatedAt' || key === 'createdAt') {
+        result[key] = typeof obj[key] === 'string' ? new Date(obj[key]) : obj[key];
+      } else {
+        result[key] = reviveDates(obj[key]);
+      }
+    }
+    return result;
+  }
+  
+  return obj;
+};
+
 export const useMessageStore = create<MessageState>()(
   persist(
     (set, get) => ({
@@ -346,7 +378,11 @@ export const useMessageStore = create<MessageState>()(
         const { conversations } = get();
         return conversations
           .filter(conv => conv.participants.includes(userId))
-          .sort((a, b) => b.updatedAt.getTime() - a.updatedAt.getTime());
+          .sort((a, b) => {
+            const dateA = a.updatedAt instanceof Date ? a.updatedAt : new Date(a.updatedAt);
+            const dateB = b.updatedAt instanceof Date ? b.updatedAt : new Date(b.updatedAt);
+            return dateB.getTime() - dateA.getTime();
+          });
       },
 
       getUnreadCount: (userId) => {
@@ -362,7 +398,28 @@ export const useMessageStore = create<MessageState>()(
         conversations: state.conversations,
         messages: state.messages,
         totalUnreadCount: state.totalUnreadCount
-      })
+      }),
+      storage: {
+        getItem: (name) => {
+          const str = localStorage.getItem(name);
+          if (!str) return null;
+          try {
+            const parsed = JSON.parse(str);
+            return {
+              state: reviveDates(parsed.state),
+              version: parsed.version
+            };
+          } catch {
+            return null;
+          }
+        },
+        setItem: (name, value) => {
+          localStorage.setItem(name, JSON.stringify(value));
+        },
+        removeItem: (name) => {
+          localStorage.removeItem(name);
+        }
+      }
     }
   )
 );
