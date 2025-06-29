@@ -1,7 +1,6 @@
 import React, { useState } from 'react';
 import { Users, FileText, CheckCircle, XCircle, Eye, Download } from 'lucide-react';
 import { useAdminStore } from '../../stores/adminStore';
-import { UserInfoSection } from '../common/UserInfoSection';
 import { VerificationApplication } from '../../types';
 
 export const AdminDashboard: React.FC = () => {
@@ -75,12 +74,9 @@ export const AdminDashboard: React.FC = () => {
         </div>
       </div>
 
-      <div className="max-w-7xl mx-auto px-4 py-8 space-y-8">
-        {/* User Info Section */}
-        <UserInfoSection />
-
+      <div className="max-w-7xl mx-auto px-4 py-8">
         {/* Stats Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
           {stats.map((stat, index) => (
             <div key={index} className="bg-white rounded-xl p-6 shadow-sm border border-gray-100">
               <div className="flex items-center justify-between">

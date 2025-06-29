@@ -58,7 +58,7 @@ export const ProductModal: React.FC<ProductModalProps> = ({
 
   const handleEditProduct = () => {
     // In a real app, this would open an edit form
-    toast('Edit functionality coming soon!');
+    toast.info('Edit functionality coming soon!');
   };
 
   const handleDeleteProduct = async () => {
