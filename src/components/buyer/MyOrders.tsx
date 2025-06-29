@@ -1,73 +1,65 @@
 import React, { useState } from 'react';
-import { Package, Clock, CheckCircle, XCircle, RotateCcw, Eye, Star } from 'lucide-react';
+import { Package, Clock, CheckCircle, XCircle, RotateCcw, Eye, Star, Filter, Search } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
+import { useAuthStore } from '../../stores/authStore';
+import { useOrderStore, Order } from '../../stores/orderStore';
+import { useCartStore } from '../../stores/cartStore';
+import { useProductStore } from '../../stores/productStore';
+import toast from 'react-hot-toast';
 
-interface BuyerOrder {
-  id: string;
-  cropName: string;
-  sellerName: string;
-  sellerPhone: string;
-  orderDate: Date;
-  quantity: number;
-  unit: string;
-  totalPrice: number;
-  status: 'pending' | 'processing' | 'shipped' | 'delivered' | 'cancelled';
-  estimatedArrival: Date;
-  trackingNumber?: string;
-  canReorder: boolean;
-  canReview: boolean;
+interface ReorderConfirmationModalProps {
+  isOpen: boolean;
+  onClose: () => void;
+  onConfirm: () => void;
+  productName: string;
 }
 
-export const MyOrders: React.FC = () => {
-  const [selectedStatus, setSelectedStatus] = useState<string>('all');
-  const [selectedOrder, setSelectedOrder] = useState<BuyerOrder | null>(null);
+const ReorderConfirmationModal: React.FC<ReorderConfirmationModalProps> = ({
+  isOpen,
+  onClose,
+  onConfirm,
+  productName
+}) => {
+  if (!isOpen) return null;
 
-  // Mock orders data
-  const orders: BuyerOrder[] = [
-    {
-      id: 'ORD-001',
-      cropName: 'Premium Rice',
-      sellerName: 'Juan Dela Cruz Farm',
-      sellerPhone: '+63 912 345 6789',
-      orderDate: new Date('2024-01-20'),
-      quantity: 50,
-      unit: 'kg',
-      totalPrice: 2250,
-      status: 'shipped',
-      estimatedArrival: new Date('2024-01-25'),
-      trackingNumber: 'TRK123456789',
-      canReorder: true,
-      canReview: false
-    },
-    {
-      id: 'ORD-002',
-      cropName: 'Sweet Corn',
-      sellerName: 'Maria Santos Farm',
-      sellerPhone: '+63 923 456 7890',
-      orderDate: new Date('2024-01-15'),
-      quantity: 25,
-      unit: 'kg',
-      totalPrice: 875,
-      status: 'delivered',
-      estimatedArrival: new Date('2024-01-20'),
-      canReorder: true,
-      canReview: true
-    },
-    {
-      id: 'ORD-003',
-      cropName: 'Fresh Tomatoes',
-      sellerName: 'Rodriguez Organic Farm',
-      sellerPhone: '+63 934 567 8901',
-      orderDate: new Date('2024-01-18'),
-      quantity: 10,
-      unit: 'kg',
-      totalPrice: 800,
-      status: 'processing',
-      estimatedArrival: new Date('2024-01-23'),
-      canReorder: true,
-      canReview: false
-    }
-  ];
+  return (
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+      <div className="bg-white rounded-2xl max-w-md w-full p-6">
+        <h3 className="text-lg font-semibold text-gray-900 mb-2">Product Already in Cart</h3>
+        <p className="text-gray-600 mb-6">
+          "{productName}" is already in your cart. Do you want to add it again?
+        </p>
+        <div className="flex space-x-3">
+          <button
+            onClick={onConfirm}
+            className="flex-1 bg-green-500 text-white py-2 px-4 rounded-lg font-medium hover:bg-green-600 transition-colors"
+          >
+            Add Again
+          </button>
+          <button
+            onClick={onClose}
+            className="flex-1 border border-gray-300 text-gray-700 py-2 px-4 rounded-lg font-medium hover:bg-gray-50 transition-colors"
+          >
+            Cancel
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+export const MyOrders: React.FC = () => {
+  const { user } = useAuthStore();
+  const { orders, getOrdersByBuyer, updateOrderStatus, isLoading } = useOrderStore();
+  const { addToCart } = useCartStore();
+  const { products } = useProductStore();
+  const [selectedStatus, setSelectedStatus] = useState<string>('all');
+  const [searchQuery, setSearchQuery] = useState('');
+  const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
+  const [showReorderModal, setShowReorderModal] = useState(false);
+  const [pendingReorder, setPendingReorder] = useState<{ order: Order; product: any } | null>(null);
+
+  const buyerOrders = user ? getOrdersByBuyer(user.id) : [];
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -103,37 +95,88 @@ export const MyOrders: React.FC = () => {
     }
   };
 
-  const filteredOrders = orders.filter(order => {
-    return selectedStatus === 'all' || order.status === selectedStatus;
+  const filteredOrders = buyerOrders.filter(order => {
+    const matchesStatus = selectedStatus === 'all' || order.status === selectedStatus;
+    const matchesSearch = searchQuery === '' || 
+      order.productName.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      order.sellerName.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      order.id.toLowerCase().includes(searchQuery.toLowerCase());
+    
+    return matchesStatus && matchesSearch;
   });
 
-  const handleReorder = (order: BuyerOrder) => {
-    console.log('Reordering:', order.cropName);
-    // In a real app, this would add the item to cart or create a new order
+  const handleReorder = async (order: Order) => {
+    // Find the product in the store
+    const product = products.find(p => p.id === order.productId);
+    
+    if (!product) {
+      toast.error('Product is no longer available');
+      return;
+    }
+
+    if (!product.isActive || product.stock === 0) {
+      toast.error('Product is currently unavailable');
+      return;
+    }
+
+    try {
+      const added = await addToCart(product, 1);
+      
+      if (!added) {
+        // Product already in cart, show confirmation modal
+        setPendingReorder({ order, product });
+        setShowReorderModal(true);
+      } else {
+        toast.success(`${product.name} added to cart!`);
+      }
+    } catch (error) {
+      toast.error('Failed to add product to cart');
+    }
+  };
+
+  const handleConfirmReorder = async () => {
+    if (!pendingReorder) return;
+
+    try {
+      // Force add to cart (increment quantity)
+      const { product } = pendingReorder;
+      await addToCart(product, 1);
+      toast.success(`${product.name} added to cart again!`);
+    } catch (error) {
+      toast.error('Failed to add product to cart');
+    } finally {
+      setShowReorderModal(false);
+      setPendingReorder(null);
+    }
+  };
+
+  const handleCloseReorderModal = () => {
+    setShowReorderModal(false);
+    setPendingReorder(null);
   };
 
   const stats = [
     {
       title: 'Total Orders',
-      value: orders.length,
+      value: buyerOrders.length,
       icon: Package,
       color: 'bg-blue-500'
     },
     {
       title: 'In Transit',
-      value: orders.filter(o => o.status === 'shipped').length,
+      value: buyerOrders.filter(o => o.status === 'shipped').length,
       icon: Package,
       color: 'bg-purple-500'
     },
     {
       title: 'Delivered',
-      value: orders.filter(o => o.status === 'delivered').length,
+      value: buyerOrders.filter(o => o.status === 'delivered').length,
       icon: CheckCircle,
       color: 'bg-green-500'
     },
     {
       title: 'Total Spent',
-      value: `₱${orders.reduce((sum, o) => sum + o.totalPrice, 0).toLocaleString()}`,
+      value: `₱${buyerOrders.reduce((sum, o) => sum + o.totalPrice, 0).toLocaleString()}`,
       icon: Package,
       color: 'bg-yellow-500'
     }
@@ -167,23 +210,38 @@ export const MyOrders: React.FC = () => {
           ))}
         </div>
 
-        {/* Status Filter */}
+        {/* Filters */}
         <div className="bg-white rounded-xl shadow-sm border border-gray-100 mb-6">
           <div className="p-6">
-            <div className="flex flex-wrap gap-2">
-              {['all', 'pending', 'processing', 'shipped', 'delivered', 'cancelled'].map((status) => (
-                <button
-                  key={status}
-                  onClick={() => setSelectedStatus(status)}
-                  className={`px-4 py-2 rounded-lg font-medium transition-colors ${
-                    selectedStatus === status
-                      ? 'bg-green-500 text-white'
-                      : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                  }`}
+            <div className="flex flex-col md:flex-row gap-4">
+              <div className="flex-1">
+                <div className="relative">
+                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={20} />
+                  <input
+                    type="text"
+                    placeholder="Search orders..."
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
+                  />
+                </div>
+              </div>
+              
+              <div className="flex items-center space-x-2">
+                <Filter size={20} className="text-gray-400" />
+                <select
+                  value={selectedStatus}
+                  onChange={(e) => setSelectedStatus(e.target.value)}
+                  className="border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-green-500 focus:border-transparent"
                 >
-                  {status === 'all' ? 'All Orders' : status.charAt(0).toUpperCase() + status.slice(1)}
-                </button>
-              ))}
+                  <option value="all">All Status</option>
+                  <option value="pending">Pending</option>
+                  <option value="processing">Processing</option>
+                  <option value="shipped">Shipped</option>
+                  <option value="delivered">Delivered</option>
+                  <option value="cancelled">Cancelled</option>
+                </select>
+              </div>
             </div>
           </div>
         </div>
@@ -205,39 +263,48 @@ export const MyOrders: React.FC = () => {
             filteredOrders.map((order) => (
               <div key={order.id} className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
                 <div className="flex items-start justify-between mb-4">
-                  <div className="flex-1">
-                    <div className="flex items-center space-x-3 mb-2">
-                      <h3 className="text-lg font-semibold text-gray-900">
-                        {order.cropName}
-                      </h3>
-                      <span className={`inline-flex items-center space-x-1 px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(order.status)}`}>
-                        {getStatusIcon(order.status)}
-                        <span className="capitalize">{order.status}</span>
-                      </span>
-                    </div>
-                    
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm text-gray-600">
-                      <div>
-                        <p><strong>Order ID:</strong> {order.id}</p>
-                        <p><strong>Seller:</strong> {order.sellerName}</p>
+                  <div className="flex items-start space-x-4 flex-1">
+                    <img
+                      src={order.productImage}
+                      alt={order.productName}
+                      className="w-20 h-20 rounded-lg object-cover"
+                    />
+                    <div className="flex-1">
+                      <div className="flex items-center space-x-3 mb-2">
+                        <h3 className="text-lg font-semibold text-gray-900">
+                          {order.productName}
+                        </h3>
+                        <span className={`inline-flex items-center space-x-1 px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(order.status)}`}>
+                          {getStatusIcon(order.status)}
+                          <span className="capitalize">{order.status}</span>
+                        </span>
                       </div>
-                      <div>
-                        <p><strong>Quantity:</strong> {order.quantity} {order.unit}</p>
-                        <p><strong>Total:</strong> ₱{order.totalPrice.toLocaleString()}</p>
+                      
+                      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm text-gray-600">
+                        <div>
+                          <p><strong>Order ID:</strong> {order.id}</p>
+                          <p><strong>Seller:</strong> {order.sellerName}</p>
+                        </div>
+                        <div>
+                          <p><strong>Quantity:</strong> {order.quantity} {order.unit}</p>
+                          <p><strong>Total:</strong> ₱{order.totalPrice.toLocaleString()}</p>
+                        </div>
+                        <div>
+                          <p><strong>Order Date:</strong> {order.orderDate.toLocaleDateString()}</p>
+                          {order.estimatedDelivery && (
+                            <p><strong>Est. Delivery:</strong> {order.estimatedDelivery.toLocaleDateString()}</p>
+                          )}
+                        </div>
                       </div>
-                      <div>
-                        <p><strong>Order Date:</strong> {order.orderDate.toLocaleDateString()}</p>
-                        <p><strong>Est. Arrival:</strong> {order.estimatedArrival.toLocaleDateString()}</p>
-                      </div>
-                    </div>
 
-                    {order.trackingNumber && (
-                      <div className="mt-3 p-3 bg-blue-50 rounded-lg">
-                        <p className="text-sm text-blue-800">
-                          <strong>Tracking Number:</strong> {order.trackingNumber}
-                        </p>
-                      </div>
-                    )}
+                      {order.trackingNumber && (
+                        <div className="mt-3 p-3 bg-blue-50 rounded-lg">
+                          <p className="text-sm text-blue-800">
+                            <strong>Tracking Number:</strong> {order.trackingNumber}
+                          </p>
+                        </div>
+                      )}
+                    </div>
                   </div>
 
                   <div className="flex flex-col space-y-2 ml-4">
@@ -259,7 +326,7 @@ export const MyOrders: React.FC = () => {
                       </button>
                     )}
                     
-                    {order.canReview && (
+                    {order.canReview && order.status === 'delivered' && (
                       <button className="flex items-center space-x-1 bg-yellow-100 text-yellow-700 px-3 py-2 rounded-lg hover:bg-yellow-200 transition-colors">
                         <Star size={16} />
                         <span>Review</span>
@@ -290,27 +357,29 @@ export const MyOrders: React.FC = () => {
             </div>
             
             <div className="p-6 space-y-6">
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <h3 className="font-semibold text-gray-900 mb-2">Order Information</h3>
-                  <div className="space-y-2 text-sm">
-                    <p><strong>Order ID:</strong> {selectedOrder.id}</p>
-                    <p><strong>Product:</strong> {selectedOrder.cropName}</p>
-                    <p><strong>Quantity:</strong> {selectedOrder.quantity} {selectedOrder.unit}</p>
-                    <p><strong>Total Price:</strong> ₱{selectedOrder.totalPrice.toLocaleString()}</p>
-                    <p><strong>Order Date:</strong> {selectedOrder.orderDate.toLocaleDateString()}</p>
-                    <p><strong>Est. Arrival:</strong> {selectedOrder.estimatedArrival.toLocaleDateString()}</p>
-                  </div>
-                </div>
-                
-                <div>
-                  <h3 className="font-semibold text-gray-900 mb-2">Seller Information</h3>
-                  <div className="space-y-2 text-sm">
-                    <p><strong>Seller:</strong> {selectedOrder.sellerName}</p>
-                    <p><strong>Phone:</strong> {selectedOrder.sellerPhone}</p>
-                    {selectedOrder.trackingNumber && (
-                      <p><strong>Tracking:</strong> {selectedOrder.trackingNumber}</p>
-                    )}
+              <div className="flex items-start space-x-4">
+                <img
+                  src={selectedOrder.productImage}
+                  alt={selectedOrder.productName}
+                  className="w-24 h-24 rounded-lg object-cover"
+                />
+                <div className="flex-1">
+                  <h3 className="text-xl font-semibold text-gray-900 mb-2">{selectedOrder.productName}</h3>
+                  <div className="grid grid-cols-2 gap-4 text-sm">
+                    <div>
+                      <p><strong>Order ID:</strong> {selectedOrder.id}</p>
+                      <p><strong>Quantity:</strong> {selectedOrder.quantity} {selectedOrder.unit}</p>
+                      <p><strong>Price per unit:</strong> ₱{selectedOrder.pricePerUnit}</p>
+                      <p><strong>Total Price:</strong> ₱{selectedOrder.totalPrice.toLocaleString()}</p>
+                    </div>
+                    <div>
+                      <p><strong>Seller:</strong> {selectedOrder.sellerName}</p>
+                      <p><strong>Order Date:</strong> {selectedOrder.orderDate.toLocaleDateString()}</p>
+                      {selectedOrder.estimatedDelivery && (
+                        <p><strong>Est. Delivery:</strong> {selectedOrder.estimatedDelivery.toLocaleDateString()}</p>
+                      )}
+                      <p><strong>Delivery Address:</strong> {selectedOrder.deliveryAddress}</p>
+                    </div>
                   </div>
                 </div>
               </div>
@@ -330,9 +399,10 @@ export const MyOrders: React.FC = () => {
                       handleReorder(selectedOrder);
                       setSelectedOrder(null);
                     }}
-                    className="flex-1 bg-green-500 text-white py-3 px-4 rounded-lg font-medium hover:bg-green-600 transition-colors"
+                    className="flex-1 bg-green-500 text-white py-3 px-4 rounded-lg font-medium hover:bg-green-600 transition-colors flex items-center justify-center space-x-2"
                   >
-                    Reorder
+                    <RotateCcw size={20} />
+                    <span>Reorder</span>
                   </button>
                 )}
                 
@@ -347,6 +417,14 @@ export const MyOrders: React.FC = () => {
           </div>
         </div>
       )}
+
+      {/* Reorder Confirmation Modal */}
+      <ReorderConfirmationModal
+        isOpen={showReorderModal}
+        onClose={handleCloseReorderModal}
+        onConfirm={handleConfirmReorder}
+        productName={pendingReorder?.product?.name || ''}
+      />
     </div>
   );
 };
