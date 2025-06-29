@@ -28,6 +28,40 @@ const calculateTotals = (items: CartItem[]) => {
   return { totalItems, totalAmount };
 };
 
+// Custom storage with Date object handling
+const customStorage = {
+  getItem: (name: string) => {
+    const str = localStorage.getItem(name);
+    if (!str) return null;
+    
+    try {
+      return JSON.parse(str, (key, value) => {
+        // Check if the value is a date string and convert it back to Date
+        if (typeof value === 'string' && /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}/.test(value)) {
+          const date = new Date(value);
+          if (!isNaN(date.getTime())) {
+            return date;
+          }
+        }
+        return value;
+      });
+    } catch (error) {
+      console.error('Error parsing stored cart data:', error);
+      return null;
+    }
+  },
+  setItem: (name: string, value: any) => {
+    try {
+      localStorage.setItem(name, JSON.stringify(value));
+    } catch (error) {
+      console.error('Error storing cart data:', error);
+    }
+  },
+  removeItem: (name: string) => {
+    localStorage.removeItem(name);
+  }
+};
+
 export const useCartStore = create<CartState>()(
   persist(
     (set, get) => ({
@@ -178,7 +212,8 @@ export const useCartStore = create<CartState>()(
       }
     }),
     {
-      name: 'agrisense-cart', // unique name for localStorage key
+      name: 'agrisense-cart',
+      storage: customStorage,
       partialize: (state) => ({ 
         items: state.items,
         totalItems: state.totalItems,
