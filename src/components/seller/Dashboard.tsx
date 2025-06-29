@@ -5,6 +5,7 @@ import { useProductStore } from '../../stores/productStore';
 import { ProductCard } from '../common/ProductCard';
 import { ProductModal } from '../common/ProductModal';
 import { AddCropForm } from './AddCropForm';
+import { UserInfoSection } from '../common/UserInfoSection';
 import { Product } from '../../types';
 import { Link } from 'react-router-dom';
 import toast from 'react-hot-toast';
@@ -99,8 +100,7 @@ export const SellerDashboard: React.FC = () => {
 
   const handleAddCropSuccess = () => {
     toast.success('Crop added successfully!');
-    // Refresh the page or update the products list
-    window.location.reload();
+    setShowAddForm(false);
   };
 
   if (seller?.verificationStatus !== 'approved') {
@@ -158,10 +158,13 @@ export const SellerDashboard: React.FC = () => {
         </div>
       </div>
 
-      <div className="max-w-7xl mx-auto px-4 py-8">
+      <div className="max-w-7xl mx-auto px-4 py-8 space-y-8">
+        {/* User Info Section */}
+        <UserInfoSection />
+
         {/* Verification Banner */}
         {!isVerified && (
-          <div className="bg-yellow-50 border border-yellow-200 rounded-xl p-6 mb-8">
+          <div className="bg-yellow-50 border border-yellow-200 rounded-xl p-6">
             <div className="flex items-center space-x-3">
               <Lock className="text-yellow-600" size={24} />
               <div>
@@ -175,7 +178,7 @@ export const SellerDashboard: React.FC = () => {
         )}
 
         {/* Stats Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
           {stats.map((stat, index) => (
             <div key={index} className="bg-white rounded-xl p-6 shadow-sm border border-gray-100">
               <div className="flex items-center justify-between">
