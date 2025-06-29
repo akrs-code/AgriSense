@@ -2,23 +2,13 @@ import React, { useState } from 'react';
 import { Package, Clock, CheckCircle, XCircle, Eye, Filter, Search, Lock } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 import { useAuthStore } from '../../stores/authStore';
+import { useOrderStore, Order } from '../../stores/orderStore';
 import { Link } from 'react-router-dom';
-
-interface Order {
-  id: string;
-  cropName: string;
-  buyerName: string;
-  buyerPhone: string;
-  orderDate: Date;
-  quantity: number;
-  unit: string;
-  totalPrice: number;
-  status: 'pending' | 'processing' | 'completed' | 'cancelled';
-  deliveryAddress: string;
-}
+import toast from 'react-hot-toast';
 
 export const MyOrders: React.FC = () => {
   const { user } = useAuthStore();
+  const { orders, getOrdersBySeller, updateOrderStatus, isLoading } = useOrderStore();
   const [selectedStatus, setSelectedStatus] = useState<string>('all');
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
@@ -57,45 +47,7 @@ export const MyOrders: React.FC = () => {
     );
   }
 
-  // Mock orders data (only shown if verified)
-  const orders: Order[] = [
-    {
-      id: 'ORD-001',
-      cropName: 'Premium Rice',
-      buyerName: 'Maria Santos',
-      buyerPhone: '+63 912 345 6789',
-      orderDate: new Date('2024-01-20'),
-      quantity: 50,
-      unit: 'kg',
-      totalPrice: 2250,
-      status: 'pending',
-      deliveryAddress: 'Quezon City, Metro Manila'
-    },
-    {
-      id: 'ORD-002',
-      cropName: 'Sweet Corn',
-      buyerName: 'Juan Dela Cruz',
-      buyerPhone: '+63 923 456 7890',
-      orderDate: new Date('2024-01-18'),
-      quantity: 25,
-      unit: 'kg',
-      totalPrice: 875,
-      status: 'processing',
-      deliveryAddress: 'Marikina City, Metro Manila'
-    },
-    {
-      id: 'ORD-003',
-      cropName: 'Premium Rice',
-      buyerName: 'Ana Rodriguez',
-      buyerPhone: '+63 934 567 8901',
-      orderDate: new Date('2024-01-15'),
-      quantity: 100,
-      unit: 'kg',
-      totalPrice: 4500,
-      status: 'completed',
-      deliveryAddress: 'Pasig City, Metro Manila'
-    }
-  ];
+  const sellerOrders = user ? getOrdersBySeller(user.id) : [];
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -103,7 +55,9 @@ export const MyOrders: React.FC = () => {
         return 'bg-yellow-100 text-yellow-800';
       case 'processing':
         return 'bg-blue-100 text-blue-800';
-      case 'completed':
+      case 'shipped':
+        return 'bg-purple-100 text-purple-800';
+      case 'delivered':
         return 'bg-green-100 text-green-800';
       case 'cancelled':
         return 'bg-red-100 text-red-800';
@@ -118,7 +72,9 @@ export const MyOrders: React.FC = () => {
         return <Clock size={16} className="text-yellow-600" />;
       case 'processing':
         return <Package size={16} className="text-blue-600" />;
-      case 'completed':
+      case 'shipped':
+        return <Package size={16} className="text-purple-600" />;
+      case 'delivered':
         return <CheckCircle size={16} className="text-green-600" />;
       case 'cancelled':
         return <XCircle size={16} className="text-red-600" />;
@@ -127,43 +83,53 @@ export const MyOrders: React.FC = () => {
     }
   };
 
-  const filteredOrders = orders.filter(order => {
+  const filteredOrders = sellerOrders.filter(order => {
     const matchesStatus = selectedStatus === 'all' || order.status === selectedStatus;
     const matchesSearch = searchQuery === '' || 
-      order.cropName.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      order.buyerName.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      order.productName.toLowerCase().includes(searchQuery.toLowerCase()) ||
       order.id.toLowerCase().includes(searchQuery.toLowerCase());
     
     return matchesStatus && matchesSearch;
   });
 
-  const updateOrderStatus = (orderId: string, newStatus: 'processing' | 'completed') => {
-    // In a real app, this would make an API call
-    console.log(`Updating order ${orderId} to ${newStatus}`);
+  const handleUpdateOrderStatus = async (orderId: string, newStatus: Order['status']) => {
+    try {
+      await updateOrderStatus(orderId, newStatus);
+      
+      const statusMessages = {
+        processing: 'Order marked as Processing',
+        shipped: 'Order marked as Shipped',
+        delivered: 'Order marked as Delivered'
+      };
+      
+      toast.success(statusMessages[newStatus] || 'Order status updated');
+    } catch (error) {
+      toast.error('Failed to update order status');
+    }
   };
 
   const stats = [
     {
       title: 'Total Orders',
-      value: orders.length,
+      value: sellerOrders.length,
       icon: Package,
       color: 'bg-blue-500'
     },
     {
       title: 'Pending',
-      value: orders.filter(o => o.status === 'pending').length,
+      value: sellerOrders.filter(o => o.status === 'pending').length,
       icon: Clock,
       color: 'bg-yellow-500'
     },
     {
       title: 'Processing',
-      value: orders.filter(o => o.status === 'processing').length,
+      value: sellerOrders.filter(o => o.status === 'processing').length,
       icon: Package,
       color: 'bg-blue-500'
     },
     {
       title: 'Completed',
-      value: orders.filter(o => o.status === 'completed').length,
+      value: sellerOrders.filter(o => o.status === 'delivered').length,
       icon: CheckCircle,
       color: 'bg-green-500'
     }
@@ -232,7 +198,8 @@ export const MyOrders: React.FC = () => {
                   <option value="all">All Status</option>
                   <option value="pending">Pending</option>
                   <option value="processing">Processing</option>
-                  <option value="completed">Completed</option>
+                  <option value="shipped">Shipped</option>
+                  <option value="delivered">Delivered</option>
                   <option value="cancelled">Cancelled</option>
                 </select>
               </div>
@@ -264,29 +231,36 @@ export const MyOrders: React.FC = () => {
               filteredOrders.map((order) => (
                 <div key={order.id} className="p-6 hover:bg-gray-50 transition-colors">
                   <div className="flex items-center justify-between">
-                    <div className="flex-1">
-                      <div className="flex items-center space-x-4 mb-2">
-                        <h3 className="text-lg font-semibold text-gray-900">
-                          {order.cropName}
-                        </h3>
-                        <span className={`inline-flex items-center space-x-1 px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(order.status)}`}>
-                          {getStatusIcon(order.status)}
-                          <span className="capitalize">{order.status}</span>
-                        </span>
-                      </div>
-                      
-                      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm text-gray-600">
-                        <div>
-                          <p><strong>Order ID:</strong> {order.id}</p>
-                          <p><strong>Buyer:</strong> {order.buyerName}</p>
+                    <div className="flex items-start space-x-4 flex-1">
+                      <img
+                        src={order.productImage}
+                        alt={order.productName}
+                        className="w-20 h-20 rounded-lg object-cover"
+                      />
+                      <div className="flex-1">
+                        <div className="flex items-center space-x-4 mb-2">
+                          <h3 className="text-lg font-semibold text-gray-900">
+                            {order.productName}
+                          </h3>
+                          <span className={`inline-flex items-center space-x-1 px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(order.status)}`}>
+                            {getStatusIcon(order.status)}
+                            <span className="capitalize">{order.status}</span>
+                          </span>
                         </div>
-                        <div>
-                          <p><strong>Quantity:</strong> {order.quantity} {order.unit}</p>
-                          <p><strong>Total:</strong> ₱{order.totalPrice.toLocaleString()}</p>
-                        </div>
-                        <div>
-                          <p><strong>Order Date:</strong> {order.orderDate.toLocaleDateString()}</p>
-                          <p><strong>Delivery:</strong> {order.deliveryAddress}</p>
+                        
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm text-gray-600">
+                          <div>
+                            <p><strong>Order ID:</strong> {order.id}</p>
+                            <p><strong>Buyer:</strong> Buyer #{order.buyerId.slice(-4)}</p>
+                          </div>
+                          <div>
+                            <p><strong>Quantity:</strong> {order.quantity} {order.unit}</p>
+                            <p><strong>Total:</strong> ₱{order.totalPrice.toLocaleString()}</p>
+                          </div>
+                          <div>
+                            <p><strong>Order Date:</strong> {order.orderDate.toLocaleDateString()}</p>
+                            <p><strong>Delivery:</strong> {order.deliveryAddress}</p>
+                          </div>
                         </div>
                       </div>
                     </div>
@@ -302,8 +276,9 @@ export const MyOrders: React.FC = () => {
                       
                       {order.status === 'pending' && (
                         <button
-                          onClick={() => updateOrderStatus(order.id, 'processing')}
-                          className="bg-blue-500 text-white px-3 py-2 rounded-lg hover:bg-blue-600 transition-colors"
+                          onClick={() => handleUpdateOrderStatus(order.id, 'processing')}
+                          disabled={isLoading}
+                          className="bg-blue-500 text-white px-3 py-2 rounded-lg hover:bg-blue-600 transition-colors disabled:opacity-50"
                         >
                           Start Processing
                         </button>
@@ -311,8 +286,9 @@ export const MyOrders: React.FC = () => {
                       
                       {order.status === 'processing' && (
                         <button
-                          onClick={() => updateOrderStatus(order.id, 'completed')}
-                          className="bg-green-500 text-white px-3 py-2 rounded-lg hover:bg-green-600 transition-colors"
+                          onClick={() => handleUpdateOrderStatus(order.id, 'delivered')}
+                          disabled={isLoading}
+                          className="bg-green-500 text-white px-3 py-2 rounded-lg hover:bg-green-600 transition-colors disabled:opacity-50"
                         >
                           Mark as Delivered
                         </button>
@@ -343,24 +319,29 @@ export const MyOrders: React.FC = () => {
             </div>
             
             <div className="p-6 space-y-6">
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <h3 className="font-semibold text-gray-900 mb-2">Order Information</h3>
-                  <div className="space-y-2 text-sm">
-                    <p><strong>Order ID:</strong> {selectedOrder.id}</p>
-                    <p><strong>Crop:</strong> {selectedOrder.cropName}</p>
-                    <p><strong>Quantity:</strong> {selectedOrder.quantity} {selectedOrder.unit}</p>
-                    <p><strong>Total Price:</strong> ₱{selectedOrder.totalPrice.toLocaleString()}</p>
-                    <p><strong>Order Date:</strong> {selectedOrder.orderDate.toLocaleDateString()}</p>
-                  </div>
-                </div>
-                
-                <div>
-                  <h3 className="font-semibold text-gray-900 mb-2">Buyer Information</h3>
-                  <div className="space-y-2 text-sm">
-                    <p><strong>Name:</strong> {selectedOrder.buyerName}</p>
-                    <p><strong>Phone:</strong> {selectedOrder.buyerPhone}</p>
-                    <p><strong>Delivery Address:</strong> {selectedOrder.deliveryAddress}</p>
+              <div className="flex items-start space-x-4">
+                <img
+                  src={selectedOrder.productImage}
+                  alt={selectedOrder.productName}
+                  className="w-24 h-24 rounded-lg object-cover"
+                />
+                <div className="flex-1">
+                  <h3 className="text-xl font-semibold text-gray-900 mb-2">{selectedOrder.productName}</h3>
+                  <div className="grid grid-cols-2 gap-4 text-sm">
+                    <div>
+                      <p><strong>Order ID:</strong> {selectedOrder.id}</p>
+                      <p><strong>Quantity:</strong> {selectedOrder.quantity} {selectedOrder.unit}</p>
+                      <p><strong>Price per unit:</strong> ₱{selectedOrder.pricePerUnit}</p>
+                      <p><strong>Total Price:</strong> ₱{selectedOrder.totalPrice.toLocaleString()}</p>
+                    </div>
+                    <div>
+                      <p><strong>Buyer:</strong> Buyer #{selectedOrder.buyerId.slice(-4)}</p>
+                      <p><strong>Order Date:</strong> {selectedOrder.orderDate.toLocaleDateString()}</p>
+                      {selectedOrder.estimatedDelivery && (
+                        <p><strong>Est. Delivery:</strong> {selectedOrder.estimatedDelivery.toLocaleDateString()}</p>
+                      )}
+                      <p><strong>Delivery Address:</strong> {selectedOrder.deliveryAddress}</p>
+                    </div>
                   </div>
                 </div>
               </div>
@@ -377,10 +358,11 @@ export const MyOrders: React.FC = () => {
                 {selectedOrder.status === 'pending' && (
                   <button
                     onClick={() => {
-                      updateOrderStatus(selectedOrder.id, 'processing');
+                      handleUpdateOrderStatus(selectedOrder.id, 'processing');
                       setSelectedOrder(null);
                     }}
-                    className="flex-1 bg-blue-500 text-white py-3 px-4 rounded-lg font-medium hover:bg-blue-600 transition-colors"
+                    disabled={isLoading}
+                    className="flex-1 bg-blue-500 text-white py-3 px-4 rounded-lg font-medium hover:bg-blue-600 transition-colors disabled:opacity-50"
                   >
                     Start Processing
                   </button>
@@ -389,10 +371,11 @@ export const MyOrders: React.FC = () => {
                 {selectedOrder.status === 'processing' && (
                   <button
                     onClick={() => {
-                      updateOrderStatus(selectedOrder.id, 'completed');
+                      handleUpdateOrderStatus(selectedOrder.id, 'delivered');
                       setSelectedOrder(null);
                     }}
-                    className="flex-1 bg-green-500 text-white py-3 px-4 rounded-lg font-medium hover:bg-green-600 transition-colors"
+                    disabled={isLoading}
+                    className="flex-1 bg-green-500 text-white py-3 px-4 rounded-lg font-medium hover:bg-green-600 transition-colors disabled:opacity-50"
                   >
                     Mark as Delivered
                   </button>

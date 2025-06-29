@@ -92,25 +92,6 @@ export const FarmerDashboard: React.FC = () => {
         ))}
       </div>
 
-      {/* Quick Actions */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-100">
-          <h3 className="text-lg font-semibold text-gray-900 mb-4">Quick Actions</h3>
-          <div className="space-y-3">
-            <button className="w-full flex items-center space-x-3 p-3 rounded-lg border border-gray-200 hover:bg-gray-50 transition-colors">
-              <Plus size={20} className="text-green-600" />
-              <span className="font-medium">{t('add_crop')}</span>
-            </button>
-            <button className="w-full flex items-center space-x-3 p-3 rounded-lg border border-gray-200 hover:bg-gray-50 transition-colors">
-              <TrendingUp size={20} className="text-blue-600" />
-              <span className="font-medium">View Market Prices</span>
-            </button>
-            <button className="w-full flex items-center space-x-3 p-3 rounded-lg border border-gray-200 hover:bg-gray-50 transition-colors">
-              <Users size={20} className="text-purple-600" />
-              <span className="font-medium">Contact Buyers</span>
-            </button>
-          </div>
-        </div>
 
         {/* Recent Activity */}
         <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-100">

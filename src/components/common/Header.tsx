@@ -9,16 +9,39 @@ import {
   Sprout
 } from 'lucide-react';
 import { useAuthStore } from '../../stores/authStore';
+import { useCartStore } from '../../stores/cartStore';
+import { useMessageStore } from '../../stores/messageStore';
 import { Link } from 'react-router-dom';
 
 export const Header: React.FC = () => {
   const { user, logout } = useAuthStore();
+  const { totalItems } = useCartStore();
+  const { getUnreadCount, fetchConversations } = useMessageStore();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [showUserMenu, setShowUserMenu] = useState(false);
+  const [unreadMessages, setUnreadMessages] = useState(0);
 
   useEffect(() => {
     document.body.style.overflow = isMenuOpen ? 'hidden' : 'auto';
   }, [isMenuOpen]);
+
+  useEffect(() => {
+    if (user) {
+      // Fetch conversations and update unread count
+      fetchConversations(user.id);
+      const count = getUnreadCount(user.id);
+      setUnreadMessages(count);
+      
+      // Set up interval to refresh unread count
+      const interval = setInterval(() => {
+        fetchConversations(user.id);
+        const newCount = getUnreadCount(user.id);
+        setUnreadMessages(newCount);
+      }, 30000); // Refresh every 30 seconds
+
+      return () => clearInterval(interval);
+    }
+  }, [user, fetchConversations, getUnreadCount]);
 
   return (
     <>
@@ -57,13 +80,21 @@ export const Header: React.FC = () => {
           <div className="flex items-center space-x-4">
             <Link to="/messages" className="p-2 rounded-md text-gray-600 hover:bg-gray-100 relative">
               <MessageSquare size={20} />
-              <span className="absolute -top-1 -right-1 w-4 h-4 bg-green-500 text-white text-xs rounded-full flex items-center justify-center">2</span>
+              {unreadMessages > 0 && (
+                <span className="absolute -top-1 -right-1 w-5 h-5 bg-green-500 text-white text-xs rounded-full flex items-center justify-center font-medium">
+                  {unreadMessages > 99 ? '99+' : unreadMessages}
+                </span>
+              )}
             </Link>
 
             {user?.role === 'buyer' && (
               <Link to="/buyer/cart" className="p-2 rounded-md text-gray-600 hover:bg-gray-100 relative">
                 <ShoppingCart size={20} />
-                <span className="absolute -top-1 -right-1 w-4 h-4 bg-green-500 text-white text-xs rounded-full flex items-center justify-center">3</span>
+                {totalItems > 0 && (
+                  <span className="absolute -top-1 -right-1 w-5 h-5 bg-green-500 text-white text-xs rounded-full flex items-center justify-center font-medium">
+                    {totalItems > 99 ? '99+' : totalItems}
+                  </span>
+                )}
               </Link>
             )}
 
@@ -88,18 +119,39 @@ export const Header: React.FC = () => {
                   <Link
                     to="/profile"
                     className="block px-4 py-2 text-sm text-gray-800 hover:bg-gray-100"
+                    onClick={() => setShowUserMenu(false)}
                   >
                     Profile Settings
                   </Link>
                   <Link
                     to="/orders"
                     className="block px-4 py-2 text-sm text-gray-800 hover:bg-gray-100"
+                    onClick={() => setShowUserMenu(false)}
                   >
                     My Orders
                   </Link>
+                  {user?.role === 'buyer' && (
+                    <Link
+                      to="/buyer/cart"
+                      className="block px-4 py-2 text-sm text-gray-800 hover:bg-gray-100"
+                      onClick={() => setShowUserMenu(false)}
+                    >
+                      Cart ({totalItems})
+                    </Link>
+                  )}
+                  <Link
+                    to="/messages"
+                    className="block px-4 py-2 text-sm text-gray-800 hover:bg-gray-100"
+                    onClick={() => setShowUserMenu(false)}
+                  >
+                    Messages {unreadMessages > 0 && `(${unreadMessages})`}
+                  </Link>
                   <hr className="my-1" />
                   <button
-                    onClick={logout}
+                    onClick={() => {
+                      logout();
+                      setShowUserMenu(false);
+                    }}
                     className="block w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-gray-100"
                   >
                     Sign Out
@@ -131,10 +183,15 @@ export const Header: React.FC = () => {
             </Link>
             <Link
               to="/messages"
-              className="py-2 text-sm text-gray-800 hover:bg-gray-100 rounded"
+              className="py-2 text-sm text-gray-800 hover:bg-gray-100 rounded flex items-center justify-between"
               onClick={() => setIsMenuOpen(false)}
             >
-              Messages
+              <span>Messages</span>
+              {unreadMessages > 0 && (
+                <span className="bg-green-500 text-white text-xs px-2 py-1 rounded-full">
+                  {unreadMessages}
+                </span>
+              )}
             </Link>
             {user?.role === 'buyer' && (
               <Link
@@ -142,7 +199,7 @@ export const Header: React.FC = () => {
                 className="py-2 text-sm text-gray-800 hover:bg-gray-100 rounded"
                 onClick={() => setIsMenuOpen(false)}
               >
-                Cart
+                Cart ({totalItems})
               </Link>
             )}
             <Link
