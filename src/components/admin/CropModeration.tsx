@@ -10,32 +10,27 @@ import {
   AlertTriangle
 } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
-
-type CropStatus = 'pending' | 'approved' | 'rejected' | 'flagged';
-
-interface CropListing {
-  id: string;
-  cropName: string;
-  variety: string;
-  farmerName: string;
-  farmerId: string;
-  price: number;
-  unit: string;
-  quantity: number;
-  submissionDate: Date;
-  status: CropStatus;
-  images: string[];
-  description: string;
-  location: string;
-  isSuspicious: boolean;
-  flagReason?: string;
-}
+import { useCropModerationStore, CropListing } from '../../stores/cropModerationStore';
 
 export const CropModeration: React.FC = () => {
-  const [activeTab, setActiveTab] = useState<CropStatus>('pending');
+  const { 
+    cropListings, 
+    isLoading, 
+    approveCrop, 
+    rejectCrop, 
+    flagCrop, 
+    getCropsByStatus 
+  } = useCropModerationStore();
+  
+  const [activeTab, setActiveTab] = useState<CropListing['status']>('pending');
   const [selectedCrop, setSelectedCrop] = useState<CropListing | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [filterFarmer, setFilterFarmer] = useState('all');
+  const [showRejectModal, setShowRejectModal] = useState(false);
+  const [showFlagModal, setShowFlagModal] = useState(false);
+  const [rejectReason, setRejectReason] = useState('');
+  const [flagReason, setFlagReason] = useState('');
+  const [actioningCropId, setActioningCropId] = useState<string | null>(null);
 
   useEffect(() => {
     if (selectedCrop) {
@@ -48,59 +43,7 @@ export const CropModeration: React.FC = () => {
     };
   }, [selectedCrop]);
 
-  const cropListings: CropListing[] = [
-    {
-      id: 'crop-1',
-      cropName: 'Premium Rice',
-      variety: 'Jasmine',
-      farmerName: 'Juan Dela Cruz',
-      farmerId: 'farmer-1',
-      price: 45,
-      unit: 'kg',
-      quantity: 500,
-      submissionDate: new Date('2024-01-20'),
-      status: 'pending',
-      images: ['https://images.pexels.com/photos/164504/pexels-photo-164504.jpeg'],
-      description: 'High-quality jasmine rice, freshly harvested from organic farm.',
-      location: 'Cabanatuan, Nueva Ecija',
-      isSuspicious: false
-    },
-    {
-      id: 'crop-2',
-      cropName: 'Sweet Corn',
-      variety: 'Golden Sweet',
-      farmerName: 'Maria Santos',
-      farmerId: 'farmer-2',
-      price: 35,
-      unit: 'kg',
-      quantity: 200,
-      submissionDate: new Date('2024-01-18'),
-      status: 'flagged',
-      images: ['https://images.pexels.com/photos/547263/pexels-photo-547263.jpeg'],
-      description: 'Fresh sweet corn perfect for boiling and grilling.',
-      location: 'Manila, Metro Manila',
-      isSuspicious: true,
-      flagReason: 'Urban location suspicious for corn farming'
-    },
-    {
-      id: 'crop-3',
-      cropName: 'Organic Tomatoes',
-      variety: 'Cherry',
-      farmerName: 'Carlos Rodriguez',
-      farmerId: 'farmer-3',
-      price: 80,
-      unit: 'kg',
-      quantity: 100,
-      submissionDate: new Date('2024-01-15'),
-      status: 'approved',
-      images: ['https://images.pexels.com/photos/533280/pexels-photo-533280.jpeg'],
-      description: 'Organic cherry tomatoes grown without pesticides.',
-      location: 'Tarlac City, Tarlac',
-      isSuspicious: false
-    }
-  ];
-
-  const getStatusColor = (status: CropStatus) => {
+  const getStatusColor = (status: CropListing['status']) => {
     return {
       pending: 'bg-yellow-100 text-yellow-800',
       approved: 'bg-green-100 text-green-800',
@@ -109,7 +52,7 @@ export const CropModeration: React.FC = () => {
     }[status];
   };
 
-  const getStatusIcon = (status: CropStatus) => {
+  const getStatusIcon = (status: CropListing['status']) => {
     return {
       pending: <Eye size={16} className="text-yellow-600" />,
       approved: <CheckCircle size={16} className="text-green-600" />,
@@ -118,19 +61,51 @@ export const CropModeration: React.FC = () => {
     }[status];
   };
 
-  const filteredCrops = cropListings.filter((crop) => {
-    const matchesTab = crop.status === activeTab;
+  const filteredCrops = getCropsByStatus(activeTab).filter((crop) => {
     const matchesSearch =
       searchQuery === '' ||
       crop.cropName.toLowerCase().includes(searchQuery.toLowerCase()) ||
       crop.farmerName.toLowerCase().includes(searchQuery.toLowerCase());
     const matchesFarmer = filterFarmer === 'all' || crop.farmerId === filterFarmer;
-    return matchesTab && matchesSearch && matchesFarmer;
+    return matchesSearch && matchesFarmer;
   });
 
-  const handleApproveCrop = (id: string) => console.log('✅ Approve:', id);
-  const handleRejectCrop = (id: string) => console.log('❌ Reject:', id);
-  const handleFlagCrop = (id: string, reason: string) => console.log('🚩 Flag:', id, reason);
+  const handleApproveCrop = async (id: string) => {
+    setActioningCropId(id);
+    try {
+      await approveCrop(id);
+    } finally {
+      setActioningCropId(null);
+    }
+  };
+
+  const handleRejectCrop = async () => {
+    if (!selectedCrop) return;
+    
+    setActioningCropId(selectedCrop.id);
+    try {
+      await rejectCrop(selectedCrop.id, rejectReason);
+      setShowRejectModal(false);
+      setSelectedCrop(null);
+      setRejectReason('');
+    } finally {
+      setActioningCropId(null);
+    }
+  };
+
+  const handleFlagCrop = async () => {
+    if (!selectedCrop || !flagReason) return;
+    
+    setActioningCropId(selectedCrop.id);
+    try {
+      await flagCrop(selectedCrop.id, flagReason);
+      setShowFlagModal(false);
+      setSelectedCrop(null);
+      setFlagReason('');
+    } finally {
+      setActioningCropId(null);
+    }
+  };
 
   const farmers = Array.from(new Set(cropListings.map(c => JSON.stringify({ id: c.farmerId, name: c.farmerName })))).map(item => JSON.parse(item));
 
@@ -145,7 +120,7 @@ export const CropModeration: React.FC = () => {
         {/* Tabs */}
         <div className="bg-white rounded-xl shadow-sm border mb-6">
           <nav className="flex space-x-8 border-b px-6">
-            {(['pending', 'approved', 'flagged', 'rejected'] as CropStatus[]).map((tab) => (
+            {(['pending', 'approved', 'flagged', 'rejected'] as CropListing['status'][]).map((tab) => (
               <button
                 key={tab}
                 onClick={() => setActiveTab(tab)}
@@ -155,7 +130,7 @@ export const CropModeration: React.FC = () => {
                   }`}
               >
                 {tab.charAt(0).toUpperCase() + tab.slice(1)} (
-                {cropListings.filter((c) => c.status === tab).length})
+                {getCropsByStatus(tab).length})
               </button>
             ))}
           </nav>
@@ -239,19 +214,28 @@ export const CropModeration: React.FC = () => {
                         <>
                           <button
                             onClick={() => handleApproveCrop(crop.id)}
-                            className="bg-green-500 text-white hover:bg-green-600 px-3 py-1 rounded text-sm"
+                            disabled={isLoading || actioningCropId === crop.id}
+                            className="bg-green-500 text-white hover:bg-green-600 px-3 py-1 rounded text-sm disabled:opacity-50"
                           >
-                            Approve
+                            {actioningCropId === crop.id ? 'Approving...' : 'Approve'}
                           </button>
                           <button
-                            onClick={() => handleRejectCrop(crop.id)}
-                            className="bg-red-500 text-white hover:bg-red-600 px-3 py-1 rounded text-sm"
+                            onClick={() => {
+                              setSelectedCrop(crop);
+                              setShowRejectModal(true);
+                            }}
+                            disabled={isLoading || actioningCropId === crop.id}
+                            className="bg-red-500 text-white hover:bg-red-600 px-3 py-1 rounded text-sm disabled:opacity-50"
                           >
                             Reject
                           </button>
                           <button
-                            onClick={() => handleFlagCrop(crop.id, 'Suspicious listing')}
-                            className="bg-orange-500 text-white hover:bg-orange-600 px-3 py-1 rounded text-sm"
+                            onClick={() => {
+                              setSelectedCrop(crop);
+                              setShowFlagModal(true);
+                            }}
+                            disabled={isLoading || actioningCropId === crop.id}
+                            className="bg-orange-500 text-white hover:bg-orange-600 px-3 py-1 rounded text-sm disabled:opacity-50"
                           >
                             Flag
                           </button>
@@ -266,8 +250,8 @@ export const CropModeration: React.FC = () => {
         </div>
       </div>
 
-      {/* Modal */}
-      {selectedCrop && (
+      {/* View Modal */}
+      {selectedCrop && !showRejectModal && !showFlagModal && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-xl w-full max-w-3xl overflow-y-auto max-h-[90vh]">
             <div className="flex justify-between items-center p-4 border-b">
@@ -282,10 +266,97 @@ export const CropModeration: React.FC = () => {
               <p><strong>Description:</strong> {selectedCrop.description}</p>
               <p><strong>Location:</strong> {selectedCrop.location}</p>
               <p><strong>Submitted:</strong> {selectedCrop.submissionDate.toDateString()}</p>
+              {selectedCrop.flagReason && (
+                <p><strong>Flag Reason:</strong> {selectedCrop.flagReason}</p>
+              )}
             </div>
             <div className="p-4 border-t flex justify-end gap-2">
               <button onClick={() => setSelectedCrop(null)} className="border px-4 py-2 rounded">
                 Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Reject Modal */}
+      {showRejectModal && selectedCrop && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-xl w-full max-w-md">
+            <div className="p-4 border-b">
+              <h2 className="text-xl font-bold">Reject Crop Listing</h2>
+            </div>
+            <div className="p-4 space-y-4">
+              <p>Are you sure you want to reject "{selectedCrop.cropName}"?</p>
+              <textarea
+                value={rejectReason}
+                onChange={(e) => setRejectReason(e.target.value)}
+                placeholder="Reason for rejection (optional)"
+                rows={3}
+                className="w-full border rounded-lg px-3 py-2"
+              />
+            </div>
+            <div className="p-4 border-t flex justify-end gap-2">
+              <button 
+                onClick={() => {
+                  setShowRejectModal(false);
+                  setRejectReason('');
+                }}
+                className="border px-4 py-2 rounded"
+              >
+                Cancel
+              </button>
+              <button 
+                onClick={handleRejectCrop}
+                disabled={isLoading}
+                className="bg-red-500 text-white px-4 py-2 rounded hover:bg-red-600 disabled:opacity-50"
+              >
+                {isLoading ? 'Rejecting...' : 'Reject'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Flag Modal */}
+      {showFlagModal && selectedCrop && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-xl w-full max-w-md">
+            <div className="p-4 border-b">
+              <h2 className="text-xl font-bold">Flag Crop Listing</h2>
+            </div>
+            <div className="p-4 space-y-4">
+              <p>Why are you flagging "{selectedCrop.cropName}"?</p>
+              <select
+                value={flagReason}
+                onChange={(e) => setFlagReason(e.target.value)}
+                className="w-full border rounded-lg px-3 py-2"
+                required
+              >
+                <option value="">Select a reason</option>
+                <option value="Suspicious location">Suspicious location</option>
+                <option value="Fake images">Fake images</option>
+                <option value="Unrealistic pricing">Unrealistic pricing</option>
+                <option value="Duplicate listing">Duplicate listing</option>
+                <option value="Other">Other</option>
+              </select>
+            </div>
+            <div className="p-4 border-t flex justify-end gap-2">
+              <button 
+                onClick={() => {
+                  setShowFlagModal(false);
+                  setFlagReason('');
+                }}
+                className="border px-4 py-2 rounded"
+              >
+                Cancel
+              </button>
+              <button 
+                onClick={handleFlagCrop}
+                disabled={isLoading || !flagReason}
+                className="bg-orange-500 text-white px-4 py-2 rounded hover:bg-orange-600 disabled:opacity-50"
+              >
+                {isLoading ? 'Flagging...' : 'Flag'}
               </button>
             </div>
           </div>

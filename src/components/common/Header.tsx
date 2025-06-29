@@ -123,13 +123,15 @@ export const Header: React.FC = () => {
                   >
                     Profile Settings
                   </Link>
-                  <Link
-                    to="/orders"
-                    className="block px-4 py-2 text-sm text-gray-800 hover:bg-gray-100"
-                    onClick={() => setShowUserMenu(false)}
-                  >
-                    My Orders
-                  </Link>
+                  {user?.role !== 'admin' && (
+                    <Link
+                      to="/orders"
+                      className="block px-4 py-2 text-sm text-gray-800 hover:bg-gray-100"
+                      onClick={() => setShowUserMenu(false)}
+                    >
+                      My Orders
+                    </Link>
+                  )}
                   {user?.role === 'buyer' && (
                     <Link
                       to="/buyer/cart"
@@ -174,13 +176,15 @@ export const Header: React.FC = () => {
             >
               Profile Settings
             </Link>
-            <Link
-              to="/orders"
-              className="py-2 text-sm text-gray-800 hover:bg-gray-100 rounded"
-              onClick={() => setIsMenuOpen(false)}
-            >
-              My Orders
-            </Link>
+            {user?.role !== 'admin' && (
+              <Link
+                to="/orders"
+                className="py-2 text-sm text-gray-800 hover:bg-gray-100 rounded"
+                onClick={() => setIsMenuOpen(false)}
+              >
+                My Orders
+              </Link>
+            )}
             <Link
               to="/messages"
               className="py-2 text-sm text-gray-800 hover:bg-gray-100 rounded flex items-center justify-between"

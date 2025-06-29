@@ -1,74 +1,24 @@
 import React, { useState } from 'react';
 import { AlertTriangle, User, Package, MessageSquare, Eye, CheckCircle, Flag, Search } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
-
-interface Report {
-  id: string;
-  reporterName: string;
-  reporterId: string;
-  targetType: 'farmer' | 'crop' | 'message';
-  targetName: string;
-  targetId: string;
-  reportType: 'abuse' | 'scam' | 'inappropriate' | 'fake' | 'other';
-  description: string;
-  reportDate: Date;
-  status: 'pending' | 'investigating' | 'resolved' | 'dismissed';
-  priority: 'low' | 'medium' | 'high';
-  adminNotes?: string;
-  actionTaken?: string;
-}
+import { useReportModerationStore, Report } from '../../stores/reportModerationStore';
 
 export const ReportsDisputes: React.FC = () => {
+  const { 
+    reports, 
+    isLoading, 
+    warnUser, 
+    suspendUser, 
+    dismissReport, 
+    getReportsByStatus 
+  } = useReportModerationStore();
+  
   const [activeTab, setActiveTab] = useState<'pending' | 'investigating' | 'resolved' | 'dismissed'>('pending');
   const [selectedReport, setSelectedReport] = useState<Report | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [filterType, setFilterType] = useState<string>('all');
   const [actionNotes, setActionNotes] = useState('');
-
-  // Mock reports data
-  const reports: Report[] = [
-    {
-      id: 'RPT-001',
-      reporterName: 'Maria Santos',
-      reporterId: 'buyer-1',
-      targetType: 'farmer',
-      targetName: 'Suspicious Farm Co.',
-      targetId: 'farmer-suspicious-1',
-      reportType: 'scam',
-      description: 'This farmer took payment but never delivered the rice. Phone number is disconnected.',
-      reportDate: new Date('2024-01-20'),
-      status: 'pending',
-      priority: 'high'
-    },
-    {
-      id: 'RPT-002',
-      reporterName: 'Juan Dela Cruz',
-      reporterId: 'buyer-2',
-      targetType: 'crop',
-      targetName: 'Premium Rice Listing',
-      targetId: 'crop-fake-1',
-      reportType: 'fake',
-      description: 'The photos used in this listing are stock photos from the internet, not actual farm photos.',
-      reportDate: new Date('2024-01-18'),
-      status: 'investigating',
-      priority: 'medium'
-    },
-    {
-      id: 'RPT-003',
-      reporterName: 'Ana Rodriguez',
-      reporterId: 'buyer-3',
-      targetType: 'message',
-      targetName: 'Inappropriate Message',
-      targetId: 'msg-inappropriate-1',
-      reportType: 'inappropriate',
-      description: 'Farmer sent inappropriate messages and used offensive language.',
-      reportDate: new Date('2024-01-15'),
-      status: 'resolved',
-      priority: 'medium',
-      adminNotes: 'Reviewed conversation logs. Warning issued to farmer.',
-      actionTaken: 'Warning issued to farmer account'
-    }
-  ];
+  const [actioningReportId, setActioningReportId] = useState<string | null>(null);
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -111,29 +61,47 @@ export const ReportsDisputes: React.FC = () => {
     }
   };
 
-  const filteredReports = reports.filter(report => {
-    const matchesTab = report.status === activeTab;
+  const filteredReports = getReportsByStatus(activeTab).filter(report => {
     const matchesSearch = searchQuery === '' || 
       report.targetName.toLowerCase().includes(searchQuery.toLowerCase()) ||
       report.reporterName.toLowerCase().includes(searchQuery.toLowerCase()) ||
       report.description.toLowerCase().includes(searchQuery.toLowerCase());
     const matchesType = filterType === 'all' || report.targetType === filterType;
     
-    return matchesTab && matchesSearch && matchesType;
+    return matchesSearch && matchesType;
   });
 
-  const handleResolveReport = (reportId: string, action: string) => {
-    console.log('Resolving report:', reportId, 'Action:', action);
-    // In a real app, this would make an API call
-    setSelectedReport(null);
-    setActionNotes('');
+  const handleWarnUser = async (reportId: string) => {
+    setActioningReportId(reportId);
+    try {
+      await warnUser(reportId, actionNotes);
+      setSelectedReport(null);
+      setActionNotes('');
+    } finally {
+      setActioningReportId(null);
+    }
   };
 
-  const handleDismissReport = (reportId: string) => {
-    console.log('Dismissing report:', reportId);
-    // In a real app, this would make an API call
-    setSelectedReport(null);
-    setActionNotes('');
+  const handleSuspendUser = async (reportId: string) => {
+    setActioningReportId(reportId);
+    try {
+      await suspendUser(reportId, actionNotes);
+      setSelectedReport(null);
+      setActionNotes('');
+    } finally {
+      setActioningReportId(null);
+    }
+  };
+
+  const handleDismissReport = async (reportId: string) => {
+    setActioningReportId(reportId);
+    try {
+      await dismissReport(reportId, actionNotes);
+      setSelectedReport(null);
+      setActionNotes('');
+    } finally {
+      setActioningReportId(null);
+    }
   };
 
   const stats = [
@@ -145,7 +113,7 @@ export const ReportsDisputes: React.FC = () => {
     },
     {
       title: 'Pending',
-      value: reports.filter(r => r.status === 'pending').length,
+      value: getReportsByStatus('pending').length,
       icon: Eye,
       color: 'bg-yellow-500'
     },
@@ -157,7 +125,7 @@ export const ReportsDisputes: React.FC = () => {
     },
     {
       title: 'Resolved',
-      value: reports.filter(r => r.status === 'resolved').length,
+      value: getReportsByStatus('resolved').length,
       icon: CheckCircle,
       color: 'bg-green-500'
     }
@@ -206,7 +174,7 @@ export const ReportsDisputes: React.FC = () => {
                   }`}
                 >
                   {tab.charAt(0).toUpperCase() + tab.slice(1)} 
-                  ({reports.filter(r => r.status === tab).length})
+                  ({getReportsByStatus(tab as any).length})
                 </button>
               ))}
             </nav>
@@ -399,22 +367,25 @@ export const ReportsDisputes: React.FC = () => {
                 {selectedReport.status === 'pending' && (
                   <>
                     <button
-                      onClick={() => handleResolveReport(selectedReport.id, 'warn')}
-                      className="flex-1 bg-yellow-500 text-white py-3 px-4 rounded-lg font-medium hover:bg-yellow-600 transition-colors"
+                      onClick={() => handleWarnUser(selectedReport.id)}
+                      disabled={isLoading || actioningReportId === selectedReport.id}
+                      className="flex-1 bg-yellow-500 text-white py-3 px-4 rounded-lg font-medium hover:bg-yellow-600 transition-colors disabled:opacity-50"
                     >
-                      Warn User
+                      {actioningReportId === selectedReport.id ? 'Warning...' : 'Warn User'}
                     </button>
                     <button
-                      onClick={() => handleResolveReport(selectedReport.id, 'suspend')}
-                      className="flex-1 bg-red-500 text-white py-3 px-4 rounded-lg font-medium hover:bg-red-600 transition-colors"
+                      onClick={() => handleSuspendUser(selectedReport.id)}
+                      disabled={isLoading || actioningReportId === selectedReport.id}
+                      className="flex-1 bg-red-500 text-white py-3 px-4 rounded-lg font-medium hover:bg-red-600 transition-colors disabled:opacity-50"
                     >
-                      Suspend User
+                      {actioningReportId === selectedReport.id ? 'Suspending...' : 'Suspend User'}
                     </button>
                     <button
                       onClick={() => handleDismissReport(selectedReport.id)}
-                      className="flex-1 bg-gray-500 text-white py-3 px-4 rounded-lg font-medium hover:bg-gray-600 transition-colors"
+                      disabled={isLoading || actioningReportId === selectedReport.id}
+                      className="flex-1 bg-gray-500 text-white py-3 px-4 rounded-lg font-medium hover:bg-gray-600 transition-colors disabled:opacity-50"
                     >
-                      Dismiss
+                      {actioningReportId === selectedReport.id ? 'Dismissing...' : 'Dismiss'}
                     </button>
                   </>
                 )}
