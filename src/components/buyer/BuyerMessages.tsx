@@ -1,129 +1,84 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { MessageSquare, Send, User, Search, Phone, Star } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
-
-interface Conversation {
-  id: string;
-  farmerName: string;
-  farmerPhone: string;
-  productName: string;
-  lastMessage: string;
-  lastMessageTime: Date;
-  unreadCount: number;
-  farmerRating: number;
-}
-
-interface Message {
-  id: string;
-  senderId: string;
-  content: string;
-  timestamp: Date;
-  isFromBuyer: boolean;
-}
+import { useMessageStore } from '../../stores/messageStore';
+import { useAuthStore } from '../../stores/authStore';
+import toast from 'react-hot-toast';
 
 export const BuyerMessages: React.FC = () => {
-  const [activeConversation, setActiveConversation] = useState<string | null>(null);
+  const { user } = useAuthStore();
+  const { 
+    conversations, 
+    messages, 
+    sendMessage, 
+    activeConversation, 
+    setActiveConversation,
+    markAsRead,
+    fetchConversations,
+    getConversationsByUser,
+    getUnreadCount
+  } = useMessageStore();
+  
   const [newMessage, setNewMessage] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
 
-  // Mock conversations data
-  const conversations: Conversation[] = [
-    {
-      id: 'conv-1',
-      farmerName: 'Juan Dela Cruz Farm',
-      farmerPhone: '+63 912 345 6789',
-      productName: 'Premium Rice',
-      lastMessage: 'Yes, we have 500kg available. When do you need it?',
-      lastMessageTime: new Date('2024-01-20T14:30:00'),
-      unreadCount: 2,
-      farmerRating: 4.8
-    },
-    {
-      id: 'conv-2',
-      farmerName: 'Maria Santos Farm',
-      farmerPhone: '+63 923 456 7890',
-      productName: 'Sweet Corn',
-      lastMessage: 'Thank you for your order! We\'ll prepare it for delivery.',
-      lastMessageTime: new Date('2024-01-19T16:45:00'),
-      unreadCount: 0,
-      farmerRating: 4.9
-    },
-    {
-      id: 'conv-3',
-      farmerName: 'Rodriguez Organic Farm',
-      farmerPhone: '+63 934 567 8901',
-      productName: 'Fresh Tomatoes',
-      lastMessage: 'The tomatoes are ready for harvest. Quality is excellent!',
-      lastMessageTime: new Date('2024-01-18T10:15:00'),
-      unreadCount: 1,
-      farmerRating: 4.7
+  const userConversations = user ? getConversationsByUser(user.id) : [];
+  const unreadCount = user ? getUnreadCount(user.id) : 0;
+
+  useEffect(() => {
+    if (user) {
+      fetchConversations(user.id);
     }
-  ];
+  }, [user, fetchConversations]);
 
-  // Mock messages for active conversation
-  const messages: { [key: string]: Message[] } = {
-    'conv-1': [
-      {
-        id: 'msg-1',
-        senderId: 'buyer-1',
-        content: 'Hi! I\'m interested in your premium rice. Is it still available?',
-        timestamp: new Date('2024-01-20T14:00:00'),
-        isFromBuyer: true
-      },
-      {
-        id: 'msg-2',
-        senderId: 'farmer-1',
-        content: 'Hello! Yes, we have premium rice available. How much do you need?',
-        timestamp: new Date('2024-01-20T14:15:00'),
-        isFromBuyer: false
-      },
-      {
-        id: 'msg-3',
-        senderId: 'buyer-1',
-        content: 'I need about 50kg. What\'s the price and can you deliver to Quezon City?',
-        timestamp: new Date('2024-01-20T14:20:00'),
-        isFromBuyer: true
-      },
-      {
-        id: 'msg-4',
-        senderId: 'farmer-1',
-        content: 'Yes, we have 500kg available. When do you need it?',
-        timestamp: new Date('2024-01-20T14:30:00'),
-        isFromBuyer: false
-      }
-    ]
+  const handleSendMessage = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newMessage.trim() || !activeConversation || !user) return;
+
+    const conversation = conversations.find(c => c.id === activeConversation);
+    if (!conversation) return;
+
+    const receiverId = conversation.participants.find(p => p !== user.id);
+    if (!receiverId) return;
+
+    setIsLoading(true);
+    try {
+      await sendMessage(activeConversation, newMessage.trim(), receiverId);
+      setNewMessage('');
+      toast.success('Message sent!');
+    } catch (error) {
+      toast.error('Failed to send message');
+    } finally {
+      setIsLoading(false);
+    }
   };
 
-  const filteredConversations = conversations.filter(conv =>
-    searchQuery === '' || 
-    conv.farmerName.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    conv.productName.toLowerCase().includes(searchQuery.toLowerCase())
-  );
+  const handleConversationClick = async (conversationId: string) => {
+    setActiveConversation(conversationId);
+    if (user) {
+      await markAsRead(conversationId, user.id);
+    }
+  };
+
+  const filteredConversations = userConversations.filter(conv => {
+    if (!searchQuery) return true;
+    
+    const lastMessage = conv.lastMessage?.content.toLowerCase() || '';
+    const productName = conv.productName?.toLowerCase() || '';
+    const query = searchQuery.toLowerCase();
+    
+    return lastMessage.includes(query) || productName.includes(query);
+  });
 
   const activeMessages = activeConversation ? messages[activeConversation] || [] : [];
   const activeConv = conversations.find(c => c.id === activeConversation);
 
-  const handleSendMessage = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!newMessage.trim() || !activeConversation) return;
-
-    // In a real app, this would send the message to the backend
-    console.log('Sending message:', newMessage);
-    setNewMessage('');
-  };
-
-  const renderStars = (rating: number) => {
-    return (
-      <div className="flex items-center space-x-1">
-        {[1, 2, 3, 4, 5].map((star) => (
-          <Star
-            key={star}
-            size={12}
-            className={star <= rating ? 'text-yellow-400 fill-current' : 'text-gray-300'}
-          />
-        ))}
-      </div>
-    );
+  const getSellerName = (conversation: any) => {
+    if (conversation.productName) {
+      return `Seller - ${conversation.productName}`;
+    }
+    return `Seller #${conversation.participants.find((p: string) => p !== user?.id)?.slice(-4) || 'Unknown'}`;
   };
 
   return (
@@ -131,8 +86,15 @@ export const BuyerMessages: React.FC = () => {
       {/* Header */}
       <div className="bg-white shadow-sm border-b">
         <div className="max-w-7xl mx-auto px-4 py-6">
-          <h1 className="text-3xl font-bold text-gray-900">Messages</h1>
-          <p className="text-gray-600 mt-1">Chat with farmers about their products</p>
+          <div>
+            <h1 className="text-3xl font-bold text-gray-900">Messages</h1>
+            <p className="text-gray-600 mt-1">Chat with farmers about their products</p>
+            {unreadCount > 0 && (
+              <p className="text-green-600 text-sm font-medium mt-1">
+                {unreadCount} unread message{unreadCount > 1 ? 's' : ''}
+              </p>
+            )}
+          </div>
         </div>
       </div>
 
@@ -169,7 +131,7 @@ export const BuyerMessages: React.FC = () => {
                   {filteredConversations.map((conversation) => (
                     <button
                       key={conversation.id}
-                      onClick={() => setActiveConversation(conversation.id)}
+                      onClick={() => handleConversationClick(conversation.id)}
                       className={`w-full p-4 text-left rounded-lg transition-colors ${
                         activeConversation === conversation.id
                           ? 'bg-green-50 border border-green-200'
@@ -182,29 +144,37 @@ export const BuyerMessages: React.FC = () => {
                         </div>
                         <div className="flex-1 min-w-0">
                           <div className="flex items-center justify-between mb-1">
-                            <h3 className="font-medium text-gray-900 truncate">
-                              {conversation.farmerName}
-                            </h3>
+                            <p className="font-medium text-gray-900 truncate">
+                              {getSellerName(conversation)}
+                            </p>
                             <div className="flex items-center space-x-2">
                               {conversation.unreadCount > 0 && (
                                 <span className="bg-green-500 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center">
                                   {conversation.unreadCount}
                                 </span>
                               )}
-                              <span className="text-xs text-gray-500">
-                                {formatDistanceToNow(conversation.lastMessageTime)} ago
-                              </span>
+                              {conversation.lastMessage && (
+                                <span className="text-xs text-gray-500">
+                                  {formatDistanceToNow(conversation.lastMessage.createdAt)} ago
+                                </span>
+                              )}
                             </div>
                           </div>
                           
-                          <div className="flex items-center space-x-2 mb-1">
-                            <span className="text-xs text-gray-600">{conversation.productName}</span>
-                            {renderStars(conversation.farmerRating)}
-                            <span className="text-xs text-gray-500">({conversation.farmerRating})</span>
-                          </div>
+                          {conversation.productName && (
+                            <div className="flex items-center space-x-2 mb-1">
+                              <span className="text-xs text-green-600">
+                                Product: {conversation.productName}
+                              </span>
+                              <div className="flex items-center">
+                                <Star size={12} className="text-yellow-400 fill-current" />
+                                <span className="text-xs text-gray-500 ml-1">4.8</span>
+                              </div>
+                            </div>
+                          )}
                           
                           <p className="text-sm text-gray-600 truncate">
-                            {conversation.lastMessage}
+                            {conversation.lastMessage?.content || 'No messages yet'}
                           </p>
                         </div>
                       </div>
@@ -227,11 +197,18 @@ export const BuyerMessages: React.FC = () => {
                         <User size={20} className="text-green-600" />
                       </div>
                       <div>
-                        <h3 className="font-semibold text-gray-900">{activeConv.farmerName}</h3>
-                        <div className="flex items-center space-x-2">
-                          <span className="text-sm text-gray-600">{activeConv.productName}</span>
-                          {renderStars(activeConv.farmerRating)}
-                        </div>
+                        <h3 className="font-semibold text-gray-900">
+                          {getSellerName(activeConv)}
+                        </h3>
+                        {activeConv.productName && (
+                          <div className="flex items-center space-x-2">
+                            <span className="text-sm text-gray-600">{activeConv.productName}</span>
+                            <div className="flex items-center">
+                              <Star size={12} className="text-yellow-400 fill-current" />
+                              <span className="text-xs text-gray-500 ml-1">4.8</span>
+                            </div>
+                          </div>
+                        )}
                       </div>
                     </div>
                     <button className="flex items-center space-x-2 text-green-600 hover:text-green-700">
@@ -243,27 +220,37 @@ export const BuyerMessages: React.FC = () => {
 
                 {/* Messages */}
                 <div className="flex-1 overflow-y-auto p-4 space-y-4">
-                  {activeMessages.map((message) => (
-                    <div
-                      key={message.id}
-                      className={`flex ${message.isFromBuyer ? 'justify-end' : 'justify-start'}`}
-                    >
-                      <div
-                        className={`max-w-xs lg:max-w-md px-4 py-2 rounded-lg ${
-                          message.isFromBuyer
-                            ? 'bg-green-500 text-white'
-                            : 'bg-gray-200 text-gray-900'
-                        }`}
-                      >
-                        <p>{message.content}</p>
-                        <p className={`text-xs mt-1 ${
-                          message.isFromBuyer ? 'text-green-100' : 'text-gray-500'
-                        }`}>
-                          {formatDistanceToNow(message.timestamp)} ago
-                        </p>
-                      </div>
+                  {activeMessages.length === 0 ? (
+                    <div className="text-center text-gray-500 py-8">
+                      <MessageSquare className="mx-auto h-8 w-8 mb-2" />
+                      <p>No messages yet. Start the conversation!</p>
                     </div>
-                  ))}
+                  ) : (
+                    activeMessages.map((message) => (
+                      <div
+                        key={message.id}
+                        className={`flex ${message.senderId === user?.id ? 'justify-end' : 'justify-start'}`}
+                      >
+                        <div
+                          className={`max-w-xs lg:max-w-md px-4 py-2 rounded-lg ${
+                            message.senderId === user?.id
+                              ? 'bg-green-500 text-white'
+                              : 'bg-gray-200 text-gray-900'
+                          }`}
+                        >
+                          <p>{message.content}</p>
+                          <p className={`text-xs mt-1 ${
+                            message.senderId === user?.id ? 'text-green-100' : 'text-gray-500'
+                          }`}>
+                            {formatDistanceToNow(message.createdAt)} ago
+                            {!message.isRead && message.senderId === user?.id && (
+                              <span className="ml-1">• Sent</span>
+                            )}
+                          </p>
+                        </div>
+                      </div>
+                    ))
+                  )}
                 </div>
 
                 {/* Message Input */}
@@ -275,10 +262,11 @@ export const BuyerMessages: React.FC = () => {
                       onChange={(e) => setNewMessage(e.target.value)}
                       placeholder="Type your message..."
                       className="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
+                      disabled={isLoading}
                     />
                     <button
                       type="submit"
-                      disabled={!newMessage.trim()}
+                      disabled={!newMessage.trim() || isLoading}
                       className="bg-green-500 text-white px-4 py-2 rounded-lg hover:bg-green-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                     >
                       <Send size={20} />
@@ -304,15 +292,13 @@ export const BuyerMessages: React.FC = () => {
         <div className="mt-6 grid grid-cols-1 md:grid-cols-3 gap-4">
           <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-100">
             <h3 className="font-semibold text-gray-900 mb-2">Active Chats</h3>
-            <p className="text-3xl font-bold text-green-600">{conversations.length}</p>
+            <p className="text-3xl font-bold text-green-600">{userConversations.length}</p>
             <p className="text-sm text-gray-600">Total conversations</p>
           </div>
 
           <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-100">
             <h3 className="font-semibold text-gray-900 mb-2">Unread Messages</h3>
-            <p className="text-3xl font-bold text-blue-600">
-              {conversations.reduce((sum, conv) => sum + conv.unreadCount, 0)}
-            </p>
+            <p className="text-3xl font-bold text-blue-600">{unreadCount}</p>
             <p className="text-sm text-gray-600">Need your attention</p>
           </div>
 
