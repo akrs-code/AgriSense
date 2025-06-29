@@ -1,12 +1,20 @@
-import React from 'react';
-import { Plus, Package, TrendingUp, MessageSquare, Star, Eye, Edit, Trash2, Lock } from 'lucide-react';
+import React, { useState } from 'react';
+import { Plus, Package, TrendingUp, MessageSquare, Star, Lock } from 'lucide-react';
 import { useAuthStore } from '../../stores/authStore';
 import { useProductStore } from '../../stores/productStore';
+import { ProductCard } from '../common/ProductCard';
+import { ProductModal } from '../common/ProductModal';
+import { AddCropForm } from './AddCropForm';
+import { Product } from '../../types';
 import { Link } from 'react-router-dom';
+import toast from 'react-hot-toast';
 
 export const SellerDashboard: React.FC = () => {
   const { user } = useAuthStore();
-  const { products, deleteProduct } = useProductStore();
+  const { products, deleteProduct, updateProduct } = useProductStore();
+  const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
+  const [showAddForm, setShowAddForm] = useState(false);
+  const [showProductModal, setShowProductModal] = useState(false);
   
   const seller = user as any;
   const myProducts = products.filter(p => p.sellerId === user?.id);
@@ -45,19 +53,41 @@ export const SellerDashboard: React.FC = () => {
     }
   ];
 
+  const handleViewProduct = (product: Product) => {
+    setSelectedProduct(product);
+    setShowProductModal(true);
+  };
+
+  const handleEditProduct = (product: Product) => {
+    if (!isVerified) {
+      toast.error('You must be verified to edit products');
+      return;
+    }
+    
+    // For now, show a toast. In a real app, this would open an edit form
+    toast.success(`Edit functionality for ${product.name} coming soon!`);
+  };
+
   const handleDeleteProduct = async (productId: string) => {
     if (!isVerified) {
-      alert('You must be verified to manage products');
+      toast.error('You must be verified to manage products');
       return;
     }
     
     if (window.confirm('Are you sure you want to delete this product?')) {
       try {
         await deleteProduct(productId);
+        toast.success('Product deleted successfully');
       } catch (error) {
         console.error('Failed to delete product:', error);
+        toast.error('Failed to delete product');
       }
     }
+  };
+
+  const handleAddProductSuccess = () => {
+    toast.success('Product added successfully!');
+    setShowAddForm(false);
   };
 
   if (seller?.verificationStatus !== 'approved') {
@@ -98,44 +128,18 @@ export const SellerDashboard: React.FC = () => {
                 </div>
               )}
             </div>
-            <Link
-              to="/seller/products/add"
-              className={`px-6 py-3 rounded-xl font-semibold transition-colors flex items-center space-x-2 ${
-                isVerified 
-                  ? 'bg-green-500 text-white hover:bg-green-600' 
-                  : 'bg-gray-300 text-gray-500 cursor-not-allowed'
-              }`}
-              onClick={(e) => {
-                if (!isVerified) {
-                  e.preventDefault();
-                  alert('You must be verified to add products');
-                }
-              }}
+            <button
+              onClick={() => setShowAddForm(true)}
+              className="px-6 py-3 rounded-xl font-semibold transition-colors flex items-center space-x-2 bg-green-500 text-white hover:bg-green-600 shadow-lg"
             >
-              {!isVerified && <Lock size={20} />}
               <Plus size={20} />
               <span>Add Product</span>
-            </Link>
+            </button>
           </div>
         </div>
       </div>
 
       <div className="max-w-7xl mx-auto px-4 py-8">
-        {/* Verification Banner */}
-        {!isVerified && (
-          <div className="bg-yellow-50 border border-yellow-200 rounded-xl p-6 mb-8">
-            <div className="flex items-center space-x-3">
-              <Lock className="text-yellow-600" size={24} />
-              <div>
-                <h3 className="font-semibold text-yellow-900">🔒 Verification Required to Sell</h3>
-                <p className="text-yellow-800 text-sm mt-1">
-                  Complete verification to unlock selling features. You can still access market intelligence and messaging.
-                </p>
-              </div>
-            </div>
-          </div>
-        )}
-
         {/* Stats Grid */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
           {stats.map((stat, index) => (
@@ -160,7 +164,7 @@ export const SellerDashboard: React.FC = () => {
             <div className="flex items-center justify-between">
               <h2 className="text-xl font-semibold text-gray-900">My Products</h2>
               <Link
-                to="/seller/products"
+                to="/seller/shopfront"
                 className="text-green-600 hover:text-green-700 font-medium"
               >
                 View All
@@ -174,101 +178,80 @@ export const SellerDashboard: React.FC = () => {
                 <Package className="mx-auto h-12 w-12 text-gray-400 mb-4" />
                 <h3 className="text-lg font-semibold text-gray-900 mb-2">No products yet</h3>
                 <p className="text-gray-600 mb-6">
-                  {isVerified 
-                    ? 'Start by adding your first product to the marketplace.'
-                    : 'Complete verification to start adding products.'
-                  }
+                  Start by adding your first product to the marketplace.
                 </p>
-                {isVerified ? (
-                  <Link
-                    to="/seller/products/add"
-                    className="bg-green-500 text-white px-6 py-3 rounded-xl font-semibold hover:bg-green-600 transition-colors inline-flex items-center space-x-2"
-                  >
-                    <Plus size={20} />
-                    <span>Add Your First Product</span>
-                  </Link>
-                ) : (
-                  <Link
-                    to="/seller/verification"
-                    className="bg-yellow-500 text-white px-6 py-3 rounded-xl font-semibold hover:bg-yellow-600 transition-colors inline-flex items-center space-x-2"
-                  >
-                    <Lock size={20} />
-                    <span>Complete Verification</span>
-                  </Link>
-                )}
+                <button
+                  onClick={() => setShowAddForm(true)}
+                  className="bg-green-500 text-white px-6 py-3 rounded-xl font-semibold hover:bg-green-600 transition-colors inline-flex items-center space-x-2"
+                >
+                  <Plus size={20} />
+                  <span>Add Your First Product</span>
+                </button>
               </div>
             ) : (
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                 {myProducts.slice(0, 6).map((product) => (
-                  <div key={product.id} className="border border-gray-200 rounded-xl overflow-hidden hover:shadow-md transition-shadow">
-                    <div className="relative h-48">
-                      <img
-                        src={product.images[0]}
-                        alt={product.name}
-                        className="w-full h-full object-cover"
-                      />
+                  <div key={product.id} className="relative group">
+                    <ProductCard
+                      product={product}
+                      onView={handleViewProduct}
+                      showActions={false}
+                    />
+                    
+                    {/* Action Overlay */}
+                    <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-40 transition-all duration-300 rounded-xl flex items-center justify-center opacity-0 group-hover:opacity-100">
+                      <div className="flex items-center space-x-2">
+                        <button
+                          onClick={() => handleViewProduct(product)}
+                          className="bg-white text-gray-700 p-2 rounded-lg hover:bg-gray-100 transition-colors"
+                          title="View Details"
+                        >
+                          <Package size={16} />
+                        </button>
+                        <button
+                          onClick={() => handleEditProduct(product)}
+                          className="bg-blue-500 text-white p-2 rounded-lg hover:bg-blue-600 transition-colors"
+                          title="Edit Product"
+                        >
+                          <Plus size={16} />
+                        </button>
+                        <button
+                          onClick={() => handleDeleteProduct(product.id)}
+                          className="bg-red-500 text-white p-2 rounded-lg hover:bg-red-600 transition-colors"
+                          title="Delete Product"
+                        >
+                          <Package size={16} />
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* Status Badge */}
+                    <div className="absolute top-3 left-3">
+                      <span className={`px-2 py-1 rounded-full text-xs font-medium ${
+                        product.isActive 
+                          ? 'bg-green-100 text-green-800' 
+                          : 'bg-gray-100 text-gray-800'
+                      }`}>
+                        {product.isActive ? 'Active' : 'Inactive'}
+                      </span>
+                    </div>
+
+                    {/* Stock Warning */}
+                    {product.stock < 10 && product.stock > 0 && (
                       <div className="absolute top-3 right-3">
-                        <span className={`px-2 py-1 rounded-full text-xs font-medium ${
-                          product.isActive 
-                            ? 'bg-green-100 text-green-800' 
-                            : 'bg-gray-100 text-gray-800'
-                        }`}>
-                          {product.isActive ? 'Active' : 'Inactive'}
+                        <span className="px-2 py-1 bg-yellow-100 text-yellow-800 rounded-full text-xs font-medium">
+                          Low Stock
                         </span>
                       </div>
-                      {!isVerified && (
-                        <div className="absolute top-3 left-3">
-                          <span className="px-2 py-1 bg-yellow-100 text-yellow-800 rounded-full text-xs font-medium flex items-center space-x-1">
-                            <Lock size={12} />
-                            <span>Locked</span>
-                          </span>
-                        </div>
-                      )}
-                    </div>
+                    )}
 
-                    <div className="p-4">
-                      <h3 className="font-semibold text-gray-900 mb-1">{product.name}</h3>
-                      <p className="text-sm text-gray-600 mb-2">{product.variety}</p>
-                      
-                      <div className="flex items-center justify-between mb-3">
-                        <span className="text-lg font-bold text-green-600">₱{product.price}/{product.unit}</span>
-                        <span className="text-sm text-gray-500">{product.stock} in stock</span>
+                    {product.stock === 0 && (
+                      <div className="absolute top-3 right-3">
+                        <span className="px-2 py-1 bg-red-100 text-red-800 rounded-full text-xs font-medium">
+                          Out of Stock
+                        </span>
                       </div>
-
-                      <div className="flex items-center space-x-2">
-                        <button 
-                          className="flex-1 flex items-center justify-center space-x-1 bg-gray-100 text-gray-700 py-2 px-3 rounded-lg text-sm font-medium hover:bg-gray-200 transition-colors"
-                        >
-                          <Eye size={16} />
-                          <span>View</span>
-                        </button>
-                        <button 
-                          className={`flex-1 flex items-center justify-center space-x-1 py-2 px-3 rounded-lg text-sm font-medium transition-colors ${
-                            isVerified 
-                              ? 'bg-blue-100 text-blue-700 hover:bg-blue-200' 
-                              : 'bg-gray-100 text-gray-400 cursor-not-allowed'
-                          }`}
-                          disabled={!isVerified}
-                          title={!isVerified ? 'Verification required' : ''}
-                        >
-                          <Edit size={16} />
-                          <span>Edit</span>
-                        </button>
-                        <button 
-                          onClick={() => handleDeleteProduct(product.id)}
-                          className={`flex-1 flex items-center justify-center space-x-1 py-2 px-3 rounded-lg text-sm font-medium transition-colors ${
-                            isVerified 
-                              ? 'bg-red-100 text-red-700 hover:bg-red-200' 
-                              : 'bg-gray-100 text-gray-400 cursor-not-allowed'
-                          }`}
-                          disabled={!isVerified}
-                          title={!isVerified ? 'Verification required' : ''}
-                        >
-                          <Trash2 size={16} />
-                          <span>Delete</span>
-                        </button>
-                      </div>
-                    </div>
+                    )}
                   </div>
                 ))}
               </div>
@@ -276,6 +259,27 @@ export const SellerDashboard: React.FC = () => {
           </div>
         </div>
       </div>
+
+      {/* Add Product Form Modal */}
+      {showAddForm && (
+        <AddCropForm
+          onClose={() => setShowAddForm(false)}
+          onSuccess={handleAddProductSuccess}
+        />
+      )}
+
+      {/* Product Detail Modal */}
+      {showProductModal && selectedProduct && (
+        <ProductModal
+          product={selectedProduct}
+          isOpen={showProductModal}
+          onClose={() => {
+            setShowProductModal(false);
+            setSelectedProduct(null);
+          }}
+          showOwnerActions={true}
+        />
+      )}
     </div>
   );
 };
