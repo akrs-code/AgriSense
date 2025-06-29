@@ -60,7 +60,7 @@ export const MyShopfront: React.FC = () => {
     }
     
     // In a real app, this would open an edit form
-    toast.info('Edit functionality coming soon!');
+    toast('Edit functionality coming soon!');
   };
 
   const handleToggleProductStatus = async (productId: string, currentStatus: boolean) => {
