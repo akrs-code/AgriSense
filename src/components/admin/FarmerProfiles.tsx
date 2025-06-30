@@ -211,9 +211,9 @@ export const FarmerProfiles: React.FC = () => {
             ) : (
               filteredFarmers.map((farmer) => (
                 <div key={farmer.id} className="p-6 hover:bg-gray-50 transition-colors">
-                  <div className="flex items-center justify-between">
+                  <div className="flex md:items-center md:flex-row flex-col justify-between">
                     <div className="flex-1">
-                      <div className="flex items-center space-x-4 mb-2">
+                      <div className="flex items-center space-x-1- mb-2">
                         <div className="w-12 h-12 bg-green-100 rounded-full flex items-center justify-center">
                           <Users size={20} className="text-green-600" />
                         </div>
@@ -227,7 +227,7 @@ export const FarmerProfiles: React.FC = () => {
                         </span>
                       </div>
                       
-                      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm text-gray-600">
+                      <div className="grid grid-cols-3 md:grid-cols-3 md:gap-10 text-sm text-gray-600">
                         <div>
                           <p><strong>Email:</strong> {farmer.email}</p>
                           <p><strong>Phone:</strong> {farmer.phone}</p>
@@ -251,12 +251,12 @@ export const FarmerProfiles: React.FC = () => {
                       )}
                     </div>
 
-                    <div className="flex items-center space-x-2 ml-4">
+                    <div className="flex items-center mt-10 space-x-2 md:ml-4">
                       <button
                         onClick={() => setSelectedFarmer(farmer)}
-                        className="flex items-center space-x-1 bg-gray-100 text-gray-700 px-3 py-2 rounded-lg hover:bg-gray-200 transition-colors"
+                        className="flex items-center space-x-1 bg-gray-100 text-gray-700 px-4 py-2 rounded-lg hover:bg-gray-200 transition-colors"
                       >
-                        <Eye size={16} />
+                        <Eye size={16}/>
                         <span>View Details</span>
                       </button>
 

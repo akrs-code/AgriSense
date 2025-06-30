@@ -111,9 +111,12 @@ export const CropModeration: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      <div className="bg-white shadow-sm border-b px-4 py-6">
-        <h1 className="text-3xl font-bold">Crop Listing Moderation</h1>
-        <p className="text-gray-600">Review and moderate crop listings from farmers</p>
+      {/* Header */}
+      <div className="bg-white shadow-sm border-b">
+        <div className="max-w-7xl mx-auto px-4 py-6">
+          <h1 className="text-3xl font-bold text-gray-900">Crop Listing Moderation</h1>
+          <p className="text-gray-600 mt-1">Review and moderate crop listings from farmers</p>
+        </div>
       </div>
 
       <div className="max-w-7xl mx-auto px-4 py-8">
@@ -191,7 +194,7 @@ export const CropModeration: React.FC = () => {
                         </h3>
                         <p className="text-sm text-gray-500">by {crop.farmerName}</p>
                       </div>
-                      <span className={`text-xs font-medium inline-flex items-center px-2 py-1 rounded-full ${getStatusColor(crop.status)}`}>
+                      <span className={`inline-flex items-center space-x-1 px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(crop.status)}`}>
                         {getStatusIcon(crop.status)}
                         <span className="ml-1 capitalize">{crop.status}</span>
                       </span>
@@ -203,19 +206,20 @@ export const CropModeration: React.FC = () => {
                       <p>Submitted: {formatDistanceToNow(crop.submissionDate, { addSuffix: true })}</p>
                     </div>
 
-                    <div className="flex gap-2 mt-2">
+                    <div className="flex md:justify-end md:-mt-12 justify-normal mt-4 space-x-2 md:ml-4">
                       <button
                         onClick={() => setSelectedCrop(crop)}
-                        className="bg-gray-100 hover:bg-gray-200 px-3 py-1 rounded text-sm"
+                        className="flex items-center gap-2 bg-gray-100 text-gray-700 px-3 py-2 rounded-lg hover:bg-gray-200"
                       >
-                        View
+                      <Eye size={16}/>
+                        View Details
                       </button>
                       {crop.status === 'pending' && (
                         <>
                           <button
                             onClick={() => handleApproveCrop(crop.id)}
                             disabled={isLoading || actioningCropId === crop.id}
-                            className="bg-green-500 text-white hover:bg-green-600 px-3 py-1 rounded text-sm disabled:opacity-50"
+                            className="bg-green-500 hover:bg-green-600 text-white px-4 py-2 text-sm rounded-md"
                           >
                             {actioningCropId === crop.id ? 'Approving...' : 'Approve'}
                           </button>
@@ -225,7 +229,7 @@ export const CropModeration: React.FC = () => {
                               setShowRejectModal(true);
                             }}
                             disabled={isLoading || actioningCropId === crop.id}
-                            className="bg-red-500 text-white hover:bg-red-600 px-3 py-1 rounded text-sm disabled:opacity-50"
+                            className="bg-red-500 hover:bg-red-600 text-white px-4 py-2 text-sm rounded-md"
                           >
                             Reject
                           </button>
@@ -235,7 +239,7 @@ export const CropModeration: React.FC = () => {
                               setShowFlagModal(true);
                             }}
                             disabled={isLoading || actioningCropId === crop.id}
-                            className="bg-orange-500 text-white hover:bg-orange-600 px-3 py-1 rounded text-sm disabled:opacity-50"
+                            className="bg-orange-500 hover:bg-orange-600 text-white px-4 py-2 text-sm rounded-md"
                           >
                             Flag
                           </button>
