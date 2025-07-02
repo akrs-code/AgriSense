@@ -1,3 +1,25 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+/* Product Cluster */
+.marker-cluster-products {
+  background-color: rgba(46, 125, 50, 0.6); /* Green outer ring */
+  border-radius: 50%;
+  color: white;
+}
+.marker-cluster-products div {
+  background-color: rgba(46, 125, 50, 0.8); /* Green inner circle */
+  border-radius: 50%;
+}
+
+/* Seller Cluster */
+.marker-cluster-sellers {
+  background-color: rgba(255, 152, 0, 0.6); /* Orange outer ring */
+  border-radius: 50%;
+  color: white;
+}
+.marker-cluster-sellers div {
+  background-color: rgba(255, 152, 0, 0.8); /* Orange inner circle */
+  border-radius: 50%;
+}

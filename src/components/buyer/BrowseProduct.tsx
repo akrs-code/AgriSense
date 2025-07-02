@@ -7,7 +7,17 @@ import { ProductModal } from '../common/ProductModal';
 import { Product } from '../../types';
 import { Link } from 'react-router-dom';
 
+// Map imports
+import MapComponent from './Map';
+import { useFarmerModerationStore } from '../../stores/farmerModerationStore';
+import { SellerMarkerData, ProductMarkerData } from './Map';
+import { FarmerModal } from '../common/FarmerModal';
+
+
 export const BrowseProduct: React.FC = () => {
+  
+
+
   const { user } = useAuthStore();
   const {
     getFilteredProducts,
@@ -22,7 +32,96 @@ export const BrowseProduct: React.FC = () => {
   const [showFilters, setShowFilters] = useState(false);
 
   const filteredProducts = getFilteredProducts();
+
+  // toggle between product and farmer
+  const [mapViewMode, setMapViewMode] = useState<'products' | 'sellers'>('products');
+  const [selectedSeller, setSelectedSeller] = useState<{ seller: SellerMarkerData; products: Product[] } | null>(null);
+
+  // initialize filter for radius
+  React.useEffect(() => {
+    if (user?.location?.lat && user?.location?.lng) {
+      setFilters({ userLocation: { lat: user.location.lat, lng: user.location.lng } });
+    }
+  }, [user]);
+  // needed to join product and seller
+  const { farmerProfiles } = useFarmerModerationStore(); 
+  
+
+
+
+  //product locations
+  const productMarkers: ProductMarkerData[] = filteredProducts
+    .filter(product => product.location?.lat && product.location?.lng)
+    .map(product => {
+      const seller = farmerProfiles.find(farmer => farmer.id === product.sellerId);
+      return {
+        type: 'product',
+        lat: product.location.lat,
+        lng: product.location.lng,
+        label: product.name,
+        price: product.price,
+        unit: product.unit,
+        category: product.category,
+        condition: product.condition,
+        productId: product.id,
+        sellerName: seller?.name,
+        businessName: seller?.businessName,
+        address: product.location.address
+      };
+    });
+
+  const sellerMarkers: SellerMarkerData[] = Object.values(
+    filteredProducts.reduce((acc, product) => {
+      const seller = farmerProfiles.find(f => f.id === product.sellerId);
+      if (!seller) return acc;
+
+      if (!acc[product.sellerId]) {
+        acc[product.sellerId] = {
+        type: 'seller',
+        sellerId: product.sellerId,
+        lat: product.location.lat,
+        lng: product.location.lng,
+        label: seller.businessName || `Seller: ${seller.name}`,
+        sellerName: seller.name,
+        businessName: seller.businessName,
+        profileImageUrl: seller.profileImageUrl,
+        email: seller.email,                  
+        phone: seller.phone,                     
+        products: [],
+        address: seller.location.address
+      };
+
+      }
+
+      acc[product.sellerId].products.push({
+        productId: product.id,
+        name: product.name,
+        price: product.price,
+        unit: product.unit,
+        category: product.category,
+        condition: product.condition,
+      });
+
+
+
+      return acc;
+    }, {} as Record<string, SellerMarkerData>)
+  );
+
+
+
+  const handleMarkerClick = (productId: string) => {
+    if (mapViewMode !== 'products') return;
+    const clickedProduct = filteredProducts.find(p => p.id === productId);
+    if (clickedProduct) {
+      setSelectedProduct(clickedProduct);
+    }
+  };
+
+
+
   const categories = ['Grains', 'Vegetables', 'Fruits', 'Herbs', 'Livestock'];
+
 
   return (
     <div className="min-h-screen bg-neutral">
@@ -138,11 +237,88 @@ export const BrowseProduct: React.FC = () => {
                     />
                   </div>
                 </div>
+                <div>
+                  <label className="block text-sm font-medium text-text mb-2">Search Radius (km)</label>
+                  <input
+                    type="number"
+                    placeholder="e.g. 10"
+                    value={filters.radiusKm || ''}
+                    onChange={(e) => setFilters({ radiusKm: Number(e.target.value) || null })}
+                    className="w-full border border-neutral-border rounded-lg px-3 py-2 focus:ring-2 focus:ring-primary focus:border-transparent"
+                  />
+                </div>
+
               </div>
             </div>
           )}
         </div>
       </div>
+
+
+      {/* Map of Farm/Product Locations 
+          Show product markers on the map using location data from filteredProducts
+      */}
+      {/* button to toggle between seller and product for the map */}
+      <div className="flex space-x-2 mt-4">
+        <button
+          onClick={() => setMapViewMode('products')}
+          className={`px-4 py-2 rounded-lg text-sm font-medium ${
+            mapViewMode === 'products'
+              ? 'bg-green-500 text-white'
+              : 'bg-white border border-gray-300 text-gray-700'
+          }`}
+        >
+          Show Products
+        </button>
+        <button
+          onClick={() => setMapViewMode('sellers')}
+          className={`px-4 py-2 rounded-lg text-sm font-medium ${
+            mapViewMode === 'sellers'
+              ? 'bg-green-500 text-white'
+              : 'bg-white border border-gray-300 text-gray-700'
+          }`}
+        >
+          Show Sellers
+        </button>
+      </div>
+      {/* Actual map */}
+      {user?.location?.lat && user?.location?.lng && (
+        <div className="bg-white rounded-xl shadow-sm border border-neutral-border mb-8">
+          <div className="p-6 border-b border-neutral-border">
+            <h2 className="text-xl font-semibold text-text">Your Location</h2>
+          </div>
+          <div className="p-6">
+            <div className="relative z-0">
+              <MapComponent
+                center={[user.location.lat, user.location.lng]}
+                markers={[
+                  ...(mapViewMode === 'products' ? productMarkers : sellerMarkers),
+                  {
+                    type: 'user',
+                    lat: user.location.lat,
+                    lng: user.location.lng,
+                    label: user.name || 'Your Farm'
+                  }
+                ]}
+                radiusKm={filters.radiusKm || undefined}
+                onProductMarkerClick={handleMarkerClick}
+                onSellerMarkerClick={(sellerId) => {
+                  const sellerMarker = sellerMarkers.find(s => s.sellerId === sellerId);
+                  if (!sellerMarker) return;
+                  const productsBySeller = filteredProducts.filter(p => p.sellerId === sellerId);
+                  setSelectedSeller({ seller: sellerMarker, products: productsBySeller });
+                }}
+                viewMode={mapViewMode} 
+
+              />
+
+            </div>
+          </div>
+        </div>
+      )}
+
+
+
 
       <div className="max-w-7xl mx-auto px-4 py-8">
         {/* Market Prices */}
@@ -224,6 +400,20 @@ export const BrowseProduct: React.FC = () => {
         isOpen={!!selectedProduct}
         onClose={() => setSelectedProduct(null)}
       />
+      {selectedSeller && (
+        <FarmerModal
+          isOpen={!!selectedSeller}
+          onClose={() => setSelectedSeller(null)}
+          sellerData={selectedSeller.seller}
+          products={selectedSeller.products}
+          onProductClick={(product) => {
+            setSelectedSeller(null); // close seller modal
+            setSelectedProduct(product); // Open product modal
+          }}
+        />
+
+      )}
+
     </div>
   );
 };

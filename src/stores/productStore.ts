@@ -11,7 +11,10 @@ interface ProductState {
     location: string;
     priceRange: [number, number];
     condition: string;
+    radiusKm: number | null;           // <--- NEW
+    userLocation: { lat: number; lng: number } | null;  // <--- NEW
   };
+
   addProduct: (product: Omit<Product, 'id' | 'createdAt' | 'updatedAt'>) => Promise<void>;
   updateProduct: (id: string, updates: Partial<Product>) => Promise<void>;
   deleteProduct: (id: string) => Promise<void>;
@@ -71,7 +74,130 @@ const mockProducts: Product[] = [
     isActive: true,
     createdAt: new Date('2024-01-12'),
     updatedAt: new Date('2024-01-12')
+  },
+  {
+  id: '3',
+  sellerId: 'seller-4',
+  name: 'Organic Tomatoes',
+  category: 'Vegetables',
+  variety: 'Roma',
+  description: 'Bright red organic tomatoes, freshly picked and pesticide-free. Perfect for salads, sauces, and soups.',
+  price: 60,
+  unit: 'kg',
+  stock: 150,
+  images: [
+    'https://images.pexels.com/photos/533280/pexels-photo-533280.jpeg'
+  ],
+  location: {
+    lat: 14.6760,
+    lng: 121.0437,
+    address: 'Quezon City, Metro Manila'
+  },
+  harvestDate: new Date('2024-01-25'),
+  condition: 'fresh',
+  isActive: true,
+  createdAt: new Date('2024-01-20'),
+  updatedAt: new Date('2024-01-20')
+},
+{
+  id: '4',
+  sellerId: 'seller-5',
+  name: 'Free-Range Chicken Eggs',
+  category: 'Livestock',
+  variety: 'Brown Eggs',
+  description: 'Farm-fresh brown eggs from healthy free-range chickens. High in protein and omega-3.',
+  price: 8,
+  unit: 'piece',
+  stock: 500,
+  images: [
+    'https://images.pexels.com/photos/458796/pexels-photo-458796.jpeg'
+  ],
+  location: {
+    lat: 14.5358,
+    lng: 121.0453,
+    address: 'Pasig City, Metro Manila'
+  },
+  harvestDate: new Date('2024-01-22'),
+  condition: 'fresh',
+  isActive: true,
+  createdAt: new Date('2024-01-22'),
+  updatedAt: new Date('2024-01-22')
+  },
+  {
+    id: '5',
+    sellerId: 'seller-6',
+    name: 'Pakbet Veggie Set',
+    category: 'Vegetables',
+    variety: 'Assorted',
+    description: 'A complete set of vegetables for Pakbet: eggplant, bitter melon, squash, okra, and string beans.',
+    price: 120,
+    unit: 'set',
+    stock: 80,
+    images: [
+      'https://images.pexels.com/photos/128420/pexels-photo-128420.jpeg'
+    ],
+    location: {
+      lat: 14.5244,
+      lng: 121.0794,
+      address: 'Taguig City, Metro Manila'
+    },
+    harvestDate: new Date('2024-01-19'),
+    condition: 'fresh',
+    isActive: true,
+    createdAt: new Date('2024-01-19'),
+    updatedAt: new Date('2024-01-19')
+    },
+    {
+    id: '6',
+    sellerId: 'seller-4',
+    name: 'Hydroponic Lettuce',
+    category: 'Vegetables',
+    variety: 'Romaine',
+    description: 'Crisp and clean hydroponically grown lettuce. Perfect for healthy salads.',
+    price: 50,
+    unit: 'bunch',
+    stock: 100,
+    images: [
+      'https://images.pexels.com/photos/196643/pexels-photo-196643.jpeg'
+    ],
+    location: {
+      lat: 14.6760,
+      lng: 121.0437,
+      address: 'Quezon City, Metro Manila'
+    },
+    harvestDate: new Date('2024-01-28'),
+    condition: 'fresh',
+    isActive: true,
+    createdAt: new Date('2024-01-26'),
+    updatedAt: new Date('2024-01-26')
+  },
+  {
+    id: '7',
+    sellerId: 'seller-4',
+    name: 'Basil Leaves',
+    category: 'Herbs',
+    variety: 'Sweet Basil',
+    description: 'Fresh basil grown organically on rooftop greenhouses. Great for pasta, pesto, and pizza.',
+    price: 30,
+    unit: 'bunch',
+    stock: 60,
+    images: [
+      'https://images.pexels.com/photos/671956/pexels-photo-671956.jpeg'
+    ],
+    location: {
+      lat: 14.6760,
+      lng: 121.0437,
+      address: 'Quezon City, Metro Manila'
+    },
+    harvestDate: new Date('2024-01-27'),
+    condition: 'fresh',
+    isActive: true,
+    createdAt: new Date('2024-01-26'),
+    updatedAt: new Date('2024-01-26')
   }
+
+
+
 ];
 
 const mockMarketPrices: MarketPrice[] = [
@@ -94,8 +220,23 @@ const mockMarketPrices: MarketPrice[] = [
     unit: 'kg',
     trend: 'stable',
     lastUpdated: new Date()
-  }
+  },
+  
 ];
+
+// simulate backend geofencing
+function getDistanceKm(lat1: number, lon1: number, lat2: number, lon2: number): number {
+  const toRad = (val: number) => (val * Math.PI) / 180;
+  const R = 6371; // Radius of Earth in km
+  const dLat = toRad(lat2 - lat1);
+  const dLon = toRad(lon2 - lon1);
+  const a =
+    Math.sin(dLat / 2) ** 2 +
+    Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) *
+    Math.sin(dLon / 2) ** 2;
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+  return R * c;
+}
 
 export const useProductStore = create<ProductState>((set, get) => ({
   products: mockProducts,
@@ -106,8 +247,11 @@ export const useProductStore = create<ProductState>((set, get) => ({
     category: '',
     location: '',
     priceRange: [0, 1000],
-    condition: ''
+    condition: '',
+    radiusKm: null,
+    userLocation: null
   },
+
 
   addProduct: async (productData) => {
     set({ isLoading: true });
@@ -192,22 +336,44 @@ export const useProductStore = create<ProductState>((set, get) => ({
 
   getFilteredProducts: () => {
     const { products, searchQuery, filters } = get();
-    
+
     return products.filter(product => {
       const matchesSearch = !searchQuery || 
         product.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
         product.category.toLowerCase().includes(searchQuery.toLowerCase()) ||
         product.variety.toLowerCase().includes(searchQuery.toLowerCase());
-      
+
       const matchesCategory = !filters.category || product.category === filters.category;
-      const matchesLocation = !filters.location || 
+
+      const matchesLocation = !filters.location ||
         product.location.address.toLowerCase().includes(filters.location.toLowerCase());
-      const matchesPrice = product.price >= filters.priceRange[0] && 
+
+      const matchesPrice = product.price >= filters.priceRange[0] &&
         product.price <= filters.priceRange[1];
+
       const matchesCondition = !filters.condition || product.condition === filters.condition;
-      
-      return matchesSearch && matchesCategory && matchesLocation && 
-             matchesPrice && matchesCondition && product.isActive;
+
+      // NEW: Distance filter logic using Haversine formula
+      const matchesDistance =
+        !filters.radiusKm || !filters.userLocation ||
+        getDistanceKm(
+          product.location.lat,
+          product.location.lng,
+          filters.userLocation.lat,
+          filters.userLocation.lng
+        ) <= filters.radiusKm;
+
+      // MODIFIED: Added matchesDistance to return condition
+      return (
+        matchesSearch &&
+        matchesCategory &&
+        matchesLocation &&
+        matchesPrice &&
+        matchesCondition &&
+        matchesDistance &&   // <--- new condition added here
+        product.isActive
+      );
     });
   }
+
 }));
