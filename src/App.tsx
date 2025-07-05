@@ -28,7 +28,7 @@ import { BuyerMessages } from './components/buyer/BuyerMessages';
 import { Reviews } from './components/buyer/Reviews';
 import { MarketIntelligence as BuyerMarketIntelligence } from './components/buyer/MarketIntelligence';
 import ShoppingCart from './components/buyer/ShoppingCart';
-import MapComponent from './components/buyer/Map';
+
 
 // Admin Components
 import { AdminDashboard } from './components/admin/Dashboard';
@@ -96,10 +96,7 @@ function App() {
 
   const seller = user?.role === 'seller' ? user as any : null;
 
-  const sampleMarkers = [
-    { lat: 10.3157, lng: 123.8854, label: "Cebu City" },
-    { lat: 10.3111, lng: 123.8917, label: "Carbon Market" },
-  ];
+  
 
   return (
     <Router>
