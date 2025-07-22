@@ -1,8 +1,9 @@
 import React, { useState } from 'react';
-import { Package, Clock, CheckCircle, XCircle, Eye, Filter, Search, Lock, Wallet, CreditCard } from 'lucide-react';
+import { Package, Clock, CheckCircle, XCircle, Eye, Filter, Search, Lock, Wallet, CreditCard, Settings, AlertCircle } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 import { useAuthStore } from '../../stores/authStore';
 import { useOrderStore, Order } from '../../stores/orderStore';
+import { Seller } from '../../types';
 import { Link } from 'react-router-dom';
 import toast from 'react-hot-toast';
 
@@ -391,10 +392,40 @@ export const MyOrders: React.FC = () => {
                     <span>{selectedOrder.paymentMethod === 'e-wallet' ? 'E-wallet Payment' : 'Cash on Delivery'}</span>
                   </span>
                   {selectedOrder.paymentMethod === 'e-wallet' && (
-                    <div className="mt-2 p-3 bg-blue-50 border border-blue-200 rounded-lg">
-                      <p className="text-sm text-blue-800">
-                        <strong>Payment Instructions:</strong> Share your e-wallet details with the buyer for payment completion.
-                      </p>
+                    <div className="mt-2">
+                      {(user as Seller)?.eWalletDetails?.provider ? (
+                        <div className="p-3 bg-green-50 border border-green-200 rounded-lg">
+                          <div className="flex items-start space-x-2">
+                            <Wallet size={16} className="text-green-600 mt-0.5" />
+                            <div>
+                              <p className="text-sm text-green-800 font-medium">E-wallet Details Configured</p>
+                              <p className="text-xs text-green-700 mt-1">
+                                Your {(user as Seller).eWalletDetails.provider} details are visible to the buyer.
+                                They can scan your QR code or use your account details to send payment.
+                              </p>
+                            </div>
+                          </div>
+                        </div>
+                      ) : (
+                        <div className="p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
+                          <div className="flex items-start space-x-2">
+                            <AlertCircle size={16} className="text-yellow-600 mt-0.5" />
+                            <div className="flex-1">
+                              <p className="text-sm text-yellow-800 font-medium">E-wallet Details Missing</p>
+                              <p className="text-xs text-yellow-700 mt-1">
+                                Set up your e-wallet details so buyers can easily pay you.
+                              </p>
+                              <Link
+                                to="/profile"
+                                className="inline-flex items-center space-x-1 text-xs text-yellow-800 hover:text-yellow-900 underline mt-2"
+                              >
+                                <Settings size={12} />
+                                <span>Set up e-wallet details</span>
+                              </Link>
+                            </div>
+                          </div>
+                        </div>
+                      )}
                     </div>
                   )}
                 </div>

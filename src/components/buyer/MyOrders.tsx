@@ -122,14 +122,30 @@ export const MyOrders: React.FC = () => {
     }
   };
 
-  // Mock farmer e-wallet details (in real app, fetch from seller profile)
+  // Get farmer e-wallet details from seller profile
   const getFarmerEWalletDetails = (sellerId: string) => {
-    // This would be fetched from the seller's profile in a real app
-    return {
+    // In a real app, this would fetch from the seller's profile API
+    // For now, we'll return mock data based on seller ID
+    const sellerProfiles: { [key: string]: any } = {
+      'seller-1': {
+        provider: 'GCash',
+        accountNumber: '09123456789',
+        accountName: 'Juan Dela Cruz',
+        qrCodeImage: 'https://via.placeholder.com/300x300/4F46E5/ffffff?text=GCash+QR+Code'
+      },
+      'seller-2': {
+        provider: 'Maya',
+        accountNumber: '09987654321',
+        accountName: 'Maria Santos',
+        qrCodeImage: 'https://via.placeholder.com/300x300/E11D48/ffffff?text=Maya+QR+Code'
+      }
+    };
+    
+    return sellerProfiles[sellerId] || {
       provider: 'GCash',
       accountNumber: '09123456789',
-      accountName: 'Juan Dela Cruz',
-      qrCodeImage: 'https://via.placeholder.com/200x200/4F46E5/ffffff?text=QR+Code'
+      accountName: 'Unknown Farmer',
+      qrCodeImage: 'https://via.placeholder.com/300x300/4F46E5/ffffff?text=QR+Code'
     };
   };
 
@@ -501,13 +517,13 @@ export const MyOrders: React.FC = () => {
                               </div>
                             </div>
                             {eWalletDetails.qrCodeImage && (
-                              <div className="flex-shrink-0">
+                              <div className="flex-shrink-0 text-center">
                                 <img
                                   src={eWalletDetails.qrCodeImage}
                                   alt="Payment QR Code"
-                                  className="w-24 h-24 object-contain border border-blue-300 rounded-lg"
+                                  className="w-32 h-32 object-contain border-2 border-blue-300 rounded-lg bg-white p-2"
                                 />
-                                <p className="text-xs text-center text-blue-700 mt-1">Scan to pay</p>
+                                <p className="text-xs text-center text-blue-700 mt-2 font-medium">Scan to pay</p>
                               </div>
                             )}
                           </div>
