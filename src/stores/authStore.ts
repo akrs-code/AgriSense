@@ -17,6 +17,7 @@ interface AuthState {
   logout: () => void;
   updateProfile: (updates: Partial<User>) => Promise<void>;
   updateLocation: (location: { lat: number; lng: number; address: string }) => void;
+  updateEWalletDetails: (eWalletDetails: { provider: string; accountNumber: string; accountName: string; qrCodeImage?: string }) => Promise<void>;
 }
 
 export const useAuthStore = create<AuthState>((set, get) => ({
@@ -68,6 +69,12 @@ export const useAuthStore = create<AuthState>((set, get) => ({
           rating: 4.8,
           reviewCount: 156,
           totalSales: 2500000,
+          eWalletDetails: {
+            provider: 'GCash',
+            accountNumber: '09123456789',
+            accountName: 'Juan Dela Cruz',
+            qrCodeImage: 'https://via.placeholder.com/300x300/4F46E5/ffffff?text=GCash+QR+Code'
+          },
           createdAt: new Date(),
           updatedAt: new Date()
         } as Seller;
@@ -180,5 +187,31 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     set({
       user: { ...user, location }
     });
+  },
+
+  updateEWalletDetails: async (eWalletDetails) => {
+    const { user } = get();
+    if (!user || user.role !== 'seller') return;
+
+    set({ isLoading: true });
+    
+    try {
+      // Simulate API call
+      await new Promise(resolve => setTimeout(resolve, 500));
+      
+      const updatedUser = {
+        ...user,
+        eWalletDetails,
+        updatedAt: new Date()
+      } as Seller;
+
+      set({
+        user: updatedUser,
+        isLoading: false
+      });
+    } catch (error) {
+      set({ isLoading: false });
+      throw error;
+    }
   }
 }));
