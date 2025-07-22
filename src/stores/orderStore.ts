@@ -1,4 +1,5 @@
 import { create } from 'zustand';
+import { CartItem } from './cartStore';
 
 export interface Order {
   id: string;
@@ -27,6 +28,7 @@ interface OrderState {
   isLoading: boolean;
   fetchOrders: () => Promise<void>;
   updateOrderStatus: (orderId: string, status: Order['status']) => Promise<void>;
+  placeOrder: (items: CartItem[], paymentMethod: 'e-wallet' | 'cod', deliveryAddress: string, buyerId: string) => Promise<void>;
   getOrdersByBuyer: (buyerId: string) => Order[];
   getOrdersBySeller: (sellerId: string) => Order[];
 }
@@ -119,6 +121,62 @@ export const useOrderStore = create<OrderState>((set, get) => ({
               }
             : order
         ),
+        isLoading: false
+      }));
+    } catch (error) {
+      set({ isLoading: false });
+      throw error;
+    }
+  },
+
+  placeOrder: async (items: CartItem[], paymentMethod: 'e-wallet' | 'cod', deliveryAddress: string, buyerId: string) => {
+    set({ isLoading: true });
+    
+    try {
+      await new Promise(resolve => setTimeout(resolve, 1000));
+      
+      // Create orders for each unique seller
+      const ordersBySeller = new Map<string, CartItem[]>();
+      
+      items.forEach(item => {
+        const sellerId = item.product.sellerId;
+        if (!ordersBySeller.has(sellerId)) {
+          ordersBySeller.set(sellerId, []);
+        }
+        ordersBySeller.get(sellerId)!.push(item);
+      });
+      
+      const newOrders: Order[] = [];
+      
+      ordersBySeller.forEach((sellerItems, sellerId) => {
+        sellerItems.forEach(item => {
+          const newOrder: Order = {
+            id: `ORD-${Date.now()}-${Math.random().toString(36).substr(2, 6).toUpperCase()}`,
+            productId: item.product.id,
+            productName: item.product.name,
+            productImage: item.product.images[0],
+            buyerId,
+            sellerId,
+            sellerName: `Seller ${sellerId.slice(-4)}`, // In real app, get from seller data
+            quantity: item.quantity,
+            unit: item.product.unit,
+            pricePerUnit: item.product.price,
+            totalPrice: item.subtotal,
+            status: 'pending',
+            paymentMethod,
+            orderDate: new Date(),
+            estimatedDelivery: new Date(Date.now() + 3 * 24 * 60 * 60 * 1000), // 3 days from now
+            deliveryAddress,
+            canReorder: true,
+            canReview: false
+          };
+          
+          newOrders.push(newOrder);
+        });
+      });
+      
+      set(state => ({
+        orders: [...state.orders, ...newOrders],
         isLoading: false
       }));
     } catch (error) {

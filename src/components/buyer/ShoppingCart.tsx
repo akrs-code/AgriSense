@@ -3,6 +3,7 @@ import { Minus, Plus, Trash2, MapPin, Calendar, ShoppingCart as ShoppingCartIcon
 import { Link } from 'react-router-dom';
 import { useCartStore, CartItem } from '../../stores/cartStore';
 import { useAuthStore } from '../../stores/authStore';
+import { useOrderStore } from '../../stores/orderStore';
 import toast from 'react-hot-toast';
 
 const ShoppingCart: React.FC = () => {
@@ -15,6 +16,7 @@ const ShoppingCart: React.FC = () => {
     removeFromCart, 
     clearCart 
   } = useCartStore();
+  const { placeOrder } = useOrderStore();
   const [isPlacingOrder, setIsPlacingOrder] = useState(false);
   const [showOrderModal, setShowOrderModal] = useState(false);
   const [selectedPaymentMethod, setSelectedPaymentMethod] = useState<'e-wallet' | 'cod'>('e-wallet');
@@ -39,11 +41,20 @@ const ShoppingCart: React.FC = () => {
   };
 
   const confirmOrder = async () => {
+    if (!user) {
+      toast.error('Please login to place order');
+      return;
+    }
+
     setIsPlacingOrder(true);
     
     try {
-      // Simulate API call
-      await new Promise(resolve => setTimeout(resolve, 2000));
+      await placeOrder(
+        items,
+        selectedPaymentMethod,
+        user.location.address,
+        user.id
+      );
       
       // Clear cart and show success
       clearCart();

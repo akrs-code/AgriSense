@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Package, Clock, CheckCircle, XCircle, RotateCcw, Eye, Star, Filter, Search } from 'lucide-react';
+import { Package, Clock, CheckCircle, XCircle, RotateCcw, Eye, Star, Filter, Search, Wallet, CreditCard } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 import { useAuthStore } from '../../stores/authStore';
 import { useOrderStore, Order } from '../../stores/orderStore';
@@ -98,6 +98,39 @@ export const MyOrders: React.FC = () => {
       default:
         return <Clock size={16} className="text-gray-600" />;
     }
+  };
+
+  const getPaymentMethodIcon = (paymentMethod: string) => {
+    switch (paymentMethod) {
+      case 'e-wallet':
+        return <Wallet size={16} className="text-blue-600" />;
+      case 'cod':
+        return <CreditCard size={16} className="text-green-600" />;
+      default:
+        return <CreditCard size={16} className="text-gray-600" />;
+    }
+  };
+
+  const getPaymentMethodColor = (paymentMethod: string) => {
+    switch (paymentMethod) {
+      case 'e-wallet':
+        return 'bg-blue-100 text-blue-800';
+      case 'cod':
+        return 'bg-green-100 text-green-800';
+      default:
+        return 'bg-gray-100 text-gray-800';
+    }
+  };
+
+  // Mock farmer e-wallet details (in real app, fetch from seller profile)
+  const getFarmerEWalletDetails = (sellerId: string) => {
+    // This would be fetched from the seller's profile in a real app
+    return {
+      provider: 'GCash',
+      accountNumber: '09123456789',
+      accountName: 'Juan Dela Cruz',
+      qrCodeImage: 'https://via.placeholder.com/200x200/4F46E5/ffffff?text=QR+Code'
+    };
   };
 
   const filteredOrders = buyerOrders.filter(order => {
@@ -324,6 +357,13 @@ export const MyOrders: React.FC = () => {
                             )}
                           </div>
                         </div>
+                        
+                        <div className="mt-3 flex items-center space-x-2">
+                          <span className={`inline-flex items-center space-x-1 px-2 py-1 rounded-full text-xs font-medium ${getPaymentMethodColor(order.paymentMethod)}`}>
+                            {getPaymentMethodIcon(order.paymentMethod)}
+                            <span>{order.paymentMethod === 'e-wallet' ? 'E-wallet Payment' : 'Cash on Delivery'}</span>
+                          </span>
+                        </div>
 
                         {order.trackingNumber && (
                           <div className="mt-3 p-3 bg-blue-50 rounded-lg">
@@ -423,13 +463,70 @@ export const MyOrders: React.FC = () => {
                 </div>
               </div>
 
-              <div>
-                <h3 className="font-semibold text-gray-900 mb-2">Status</h3>
-                <span className={`inline-flex items-center space-x-1 px-3 py-1 rounded-full text-sm font-medium ${getStatusColor(selectedOrder.status)}`}>
-                  {getStatusIcon(selectedOrder.status)}
-                  <span className="capitalize">{selectedOrder.status}</span>
-                </span>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div>
+                  <h3 className="font-semibold text-gray-900 mb-2">Order Status</h3>
+                  <span className={`inline-flex items-center space-x-1 px-3 py-1 rounded-full text-sm font-medium ${getStatusColor(selectedOrder.status)}`}>
+                    {getStatusIcon(selectedOrder.status)}
+                    <span className="capitalize">{selectedOrder.status}</span>
+                  </span>
+                </div>
+                
+                <div>
+                  <h3 className="font-semibold text-gray-900 mb-2">Payment Method</h3>
+                  <span className={`inline-flex items-center space-x-1 px-3 py-1 rounded-full text-sm font-medium ${getPaymentMethodColor(selectedOrder.paymentMethod)}`}>
+                    {getPaymentMethodIcon(selectedOrder.paymentMethod)}
+                    <span>{selectedOrder.paymentMethod === 'e-wallet' ? 'E-wallet Payment' : 'Cash on Delivery'}</span>
+                  </span>
+                </div>
               </div>
+
+              {/* E-wallet Payment Details */}
+              {selectedOrder.paymentMethod === 'e-wallet' && (
+                <div>
+                  <h3 className="font-semibold text-gray-900 mb-3">Payment Details</h3>
+                  <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                    {(() => {
+                      const eWalletDetails = getFarmerEWalletDetails(selectedOrder.sellerId);
+                      return (
+                        <div className="space-y-4">
+                          <div className="flex items-start space-x-4">
+                            <div className="flex-1">
+                              <h4 className="font-semibold text-blue-900 mb-2">Send payment to:</h4>
+                              <div className="space-y-2 text-sm">
+                                <p><strong>Provider:</strong> {eWalletDetails.provider}</p>
+                                <p><strong>Account Number:</strong> {eWalletDetails.accountNumber}</p>
+                                <p><strong>Account Name:</strong> {eWalletDetails.accountName}</p>
+                                <p><strong>Amount:</strong> ₱{selectedOrder.totalPrice.toLocaleString()}</p>
+                              </div>
+                            </div>
+                            {eWalletDetails.qrCodeImage && (
+                              <div className="flex-shrink-0">
+                                <img
+                                  src={eWalletDetails.qrCodeImage}
+                                  alt="Payment QR Code"
+                                  className="w-24 h-24 object-contain border border-blue-300 rounded-lg"
+                                />
+                                <p className="text-xs text-center text-blue-700 mt-1">Scan to pay</p>
+                              </div>
+                            )}
+                          </div>
+                          
+                          <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3">
+                            <h5 className="font-semibold text-yellow-900 mb-1">Payment Instructions:</h5>
+                            <ul className="text-xs text-yellow-800 space-y-1">
+                              <li>• Send the exact amount to the farmer's e-wallet</li>
+                              <li>• Take a screenshot of your payment confirmation</li>
+                              <li>• Contact the farmer to confirm payment</li>
+                              <li>• Keep your receipt for reference</li>
+                            </ul>
+                          </div>
+                        </div>
+                      );
+                    })()}
+                  </div>
+                </div>
+              )}
 
               <div className="flex space-x-3">
                 {selectedOrder.canReorder && (
