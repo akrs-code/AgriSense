@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Package, Clock, CheckCircle, XCircle, Eye, Filter, Search, Lock } from 'lucide-react';
+import { Package, Clock, CheckCircle, XCircle, Eye, Filter, Search, Lock, Wallet, CreditCard } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 import { useAuthStore } from '../../stores/authStore';
 import { useOrderStore, Order } from '../../stores/orderStore';
@@ -80,6 +80,28 @@ export const MyOrders: React.FC = () => {
         return <XCircle size={16} className="text-red-600" />;
       default:
         return <Clock size={16} className="text-gray-600" />;
+    }
+  };
+
+  const getPaymentMethodIcon = (paymentMethod: string) => {
+    switch (paymentMethod) {
+      case 'e-wallet':
+        return <Wallet size={16} className="text-blue-600" />;
+      case 'cod':
+        return <CreditCard size={16} className="text-green-600" />;
+      default:
+        return <CreditCard size={16} className="text-gray-600" />;
+    }
+  };
+
+  const getPaymentMethodColor = (paymentMethod: string) => {
+    switch (paymentMethod) {
+      case 'e-wallet':
+        return 'bg-blue-100 text-blue-800';
+      case 'cod':
+        return 'bg-green-100 text-green-800';
+      default:
+        return 'bg-gray-100 text-gray-800';
     }
   };
 
@@ -262,6 +284,13 @@ export const MyOrders: React.FC = () => {
                             <p><strong>Delivery:</strong> {order.deliveryAddress}</p>
                           </div>
                         </div>
+                        
+                        <div className="mt-3 flex items-center space-x-2">
+                          <span className={`inline-flex items-center space-x-1 px-2 py-1 rounded-full text-xs font-medium ${getPaymentMethodColor(order.paymentMethod)}`}>
+                            {getPaymentMethodIcon(order.paymentMethod)}
+                            <span>{order.paymentMethod === 'e-wallet' ? 'E-wallet Payment' : 'Cash on Delivery'}</span>
+                          </span>
+                        </div>
                       </div>
                     </div>
 
@@ -346,12 +375,29 @@ export const MyOrders: React.FC = () => {
                 </div>
               </div>
 
-              <div>
-                <h3 className="font-semibold text-gray-900 mb-2">Status</h3>
-                <span className={`inline-flex items-center space-x-1 px-3 py-1 rounded-full text-sm font-medium ${getStatusColor(selectedOrder.status)}`}>
-                  {getStatusIcon(selectedOrder.status)}
-                  <span className="capitalize">{selectedOrder.status}</span>
-                </span>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div>
+                  <h3 className="font-semibold text-gray-900 mb-2">Order Status</h3>
+                  <span className={`inline-flex items-center space-x-1 px-3 py-1 rounded-full text-sm font-medium ${getStatusColor(selectedOrder.status)}`}>
+                    {getStatusIcon(selectedOrder.status)}
+                    <span className="capitalize">{selectedOrder.status}</span>
+                  </span>
+                </div>
+                
+                <div>
+                  <h3 className="font-semibold text-gray-900 mb-2">Payment Method</h3>
+                  <span className={`inline-flex items-center space-x-1 px-3 py-1 rounded-full text-sm font-medium ${getPaymentMethodColor(selectedOrder.paymentMethod)}`}>
+                    {getPaymentMethodIcon(selectedOrder.paymentMethod)}
+                    <span>{selectedOrder.paymentMethod === 'e-wallet' ? 'E-wallet Payment' : 'Cash on Delivery'}</span>
+                  </span>
+                  {selectedOrder.paymentMethod === 'e-wallet' && (
+                    <div className="mt-2 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                      <p className="text-sm text-blue-800">
+                        <strong>Payment Instructions:</strong> Share your e-wallet details with the buyer for payment completion.
+                      </p>
+                    </div>
+                  )}
+                </div>
               </div>
 
               <div className="flex space-x-3">
