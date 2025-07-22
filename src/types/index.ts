@@ -29,6 +29,12 @@ export interface Seller extends User {
   rating: number;
   reviewCount: number;
   totalSales: number;
+  eWalletDetails?: {
+    provider: string; // e.g., 'GCash', 'PayMaya', 'PayPal'
+    accountNumber: string;
+    accountName: string;
+    qrCodeImage?: string;
+  };
 }
 
 export interface Buyer extends User {
@@ -109,7 +115,7 @@ export interface Transaction {
   quantity: number;
   totalPrice: number;
   status: 'pending' | 'confirmed' | 'completed' | 'cancelled';
-  paymentMethod: string;
+  paymentMethod: 'e-wallet' | 'cod';
   deliveryAddress: string;
   createdAt: Date;
 }

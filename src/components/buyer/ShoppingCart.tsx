@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Minus, Plus, Trash2, MapPin, Calendar, ShoppingCart as ShoppingCartIcon, ArrowRight, Package } from 'lucide-react';
+import { Minus, Plus, Trash2, MapPin, Calendar, ShoppingCart as ShoppingCartIcon, ArrowRight, Package, CreditCard, Wallet } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { useCartStore, CartItem } from '../../stores/cartStore';
 import { useAuthStore } from '../../stores/authStore';
@@ -17,6 +17,7 @@ const ShoppingCart: React.FC = () => {
   } = useCartStore();
   const [isPlacingOrder, setIsPlacingOrder] = useState(false);
   const [showOrderModal, setShowOrderModal] = useState(false);
+  const [selectedPaymentMethod, setSelectedPaymentMethod] = useState<'e-wallet' | 'cod'>('e-wallet');
 
   const handleUpdateQuantity = (itemId: string, newQuantity: number) => {
     if (newQuantity < 1) return;
@@ -47,7 +48,7 @@ const ShoppingCart: React.FC = () => {
       // Clear cart and show success
       clearCart();
       setShowOrderModal(false);
-      toast.success('Order placed successfully!');
+      toast.success(`Order placed successfully with ${selectedPaymentMethod === 'e-wallet' ? 'E-wallet' : 'Cash on Delivery'} payment!`);
     } catch (error) {
       toast.error('Failed to place order. Please try again.');
     } finally {
@@ -192,12 +193,66 @@ const ShoppingCart: React.FC = () => {
       {/* Order Confirmation Modal */}
       {showOrderModal && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-          <div className="bg-white rounded-2xl max-w-md w-full">
+          <div className="bg-white rounded-2xl max-w-lg w-full max-h-[90vh] overflow-y-auto">
             <div className="p-6 border-b border-gray-200">
               <h2 className="text-xl font-bold text-gray-900">Confirm Your Order</h2>
             </div>
             
-            <div className="p-6 space-y-4">
+            <div className="p-6 space-y-6">
+              {/* Payment Method Selection */}
+              <div>
+                <h3 className="font-semibold text-gray-900 mb-3">Select Payment Method</h3>
+                <div className="space-y-3">
+                  <label className="flex items-center space-x-3 p-4 border border-gray-200 rounded-lg cursor-pointer hover:bg-gray-50 transition-colors">
+                    <input
+                      type="radio"
+                      name="paymentMethod"
+                      value="e-wallet"
+                      checked={selectedPaymentMethod === 'e-wallet'}
+                      onChange={(e) => setSelectedPaymentMethod(e.target.value as 'e-wallet')}
+                      className="text-green-600 focus:ring-green-500"
+                    />
+                    <div className="flex items-center space-x-3">
+                      <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center">
+                        <Wallet className="text-blue-600" size={20} />
+                      </div>
+                      <div>
+                        <div className="font-medium text-gray-900">E-wallet</div>
+                        <div className="text-sm text-gray-600">Pay using GCash, PayMaya, or other e-wallets</div>
+                      </div>
+                    </div>
+                  </label>
+                  
+                  <label className="flex items-center space-x-3 p-4 border border-gray-200 rounded-lg cursor-pointer hover:bg-gray-50 transition-colors">
+                    <input
+                      type="radio"
+                      name="paymentMethod"
+                      value="cod"
+                      checked={selectedPaymentMethod === 'cod'}
+                      onChange={(e) => setSelectedPaymentMethod(e.target.value as 'cod')}
+                      className="text-green-600 focus:ring-green-500"
+                    />
+                    <div className="flex items-center space-x-3">
+                      <div className="w-10 h-10 bg-green-100 rounded-lg flex items-center justify-center">
+                        <CreditCard className="text-green-600" size={20} />
+                      </div>
+                      <div>
+                        <div className="font-medium text-gray-900">Cash on Delivery (COD)</div>
+                        <div className="text-sm text-gray-600">Pay in cash when you receive your order</div>
+                      </div>
+                    </div>
+                  </label>
+                </div>
+                
+                {selectedPaymentMethod === 'e-wallet' && (
+                  <div className="mt-3 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                    <p className="text-sm text-blue-800">
+                      <strong>Note:</strong> After placing your order, you'll receive the farmer's e-wallet details to complete the payment.
+                    </p>
+                  </div>
+                )}
+              </div>
+
               <div>
                 <h3 className="font-semibold text-gray-900 mb-2">Order Summary</h3>
                 <div className="space-y-2 text-sm max-h-40 overflow-y-auto">
@@ -235,7 +290,7 @@ const ShoppingCart: React.FC = () => {
                   disabled={isPlacingOrder}
                   className="flex-1 bg-green-500 text-white py-3 px-4 rounded-lg font-medium hover:bg-green-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                 >
-                  {isPlacingOrder ? 'Placing Order...' : 'Confirm Order'}
+                  {isPlacingOrder ? 'Placing Order...' : `Confirm Order (${selectedPaymentMethod === 'e-wallet' ? 'E-wallet' : 'COD'})`}
                 </button>
                 <button
                   onClick={() => setShowOrderModal(false)}
