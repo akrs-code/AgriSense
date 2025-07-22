@@ -13,6 +13,7 @@ export interface Order {
   pricePerUnit: number;
   totalPrice: number;
   status: 'pending' | 'processing' | 'shipped' | 'delivered' | 'cancelled';
+  paymentMethod: 'e-wallet' | 'cod';
   orderDate: Date;
   estimatedDelivery?: Date;
   deliveryAddress: string;
@@ -44,6 +45,7 @@ const mockOrders: Order[] = [
     pricePerUnit: 45,
     totalPrice: 2250,
     status: 'pending',
+    paymentMethod: 'e-wallet',
     orderDate: new Date('2024-01-20'),
     estimatedDelivery: new Date('2024-01-25'),
     deliveryAddress: 'Quezon City, Metro Manila',
@@ -63,6 +65,7 @@ const mockOrders: Order[] = [
     pricePerUnit: 35,
     totalPrice: 875,
     status: 'processing',
+    paymentMethod: 'cod',
     orderDate: new Date('2024-01-18'),
     estimatedDelivery: new Date('2024-01-23'),
     deliveryAddress: 'Quezon City, Metro Manila',
@@ -82,6 +85,7 @@ const mockOrders: Order[] = [
     pricePerUnit: 45,
     totalPrice: 4500,
     status: 'delivered',
+    paymentMethod: 'e-wallet',
     orderDate: new Date('2024-01-15'),
     deliveryAddress: 'Quezon City, Metro Manila',
     canReorder: true,
