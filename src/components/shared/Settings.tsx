@@ -1,10 +1,11 @@
 import React, { useState } from 'react';
-import { User, Globe, Bell, LogOut, Save, Camera, MapPin, Phone, Mail } from 'lucide-react';
+import { User, Globe, Bell, LogOut, Save, Camera, MapPin, Phone, Mail, Wallet, Upload, X } from 'lucide-react';
 import { useAuthStore } from '../../stores/authStore';
+import { Seller } from '../../types';
 import toast from 'react-hot-toast';
 
 export const Settings: React.FC = () => {
-  const { user, logout, updateProfile } = useAuthStore();
+  const { user, logout, updateProfile, updateEWalletDetails } = useAuthStore();
   const [activeTab, setActiveTab] = useState('profile');
   const [isLoading, setIsLoading] = useState(false);
   
@@ -22,6 +23,16 @@ export const Settings: React.FC = () => {
     pushNotifications: true,
     marketingEmails: false
   });
+
+  const [eWalletData, setEWalletData] = useState({
+    provider: (user as Seller)?.eWalletDetails?.provider || '',
+    accountNumber: (user as Seller)?.eWalletDetails?.accountNumber || '',
+    accountName: (user as Seller)?.eWalletDetails?.accountName || '',
+    qrCodeImage: (user as Seller)?.eWalletDetails?.qrCodeImage || ''
+  });
+
+  const [qrCodeFile, setQrCodeFile] = useState<File | null>(null);
+  const [qrCodePreview, setQrCodePreview] = useState<string>('');
 
   const handleSaveProfile = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -58,8 +69,75 @@ export const Settings: React.FC = () => {
     }
   };
 
+  const handleQrCodeUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      if (file.size > 5 * 1024 * 1024) { // 5MB limit
+        toast.error('File size should be less than 5MB');
+        return;
+      }
+      
+      if (!file.type.startsWith('image/')) {
+        toast.error('Please upload an image file');
+        return;
+      }
+
+      setQrCodeFile(file);
+      
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        const result = e.target?.result as string;
+        setQrCodePreview(result);
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  const handleSaveEWallet = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setIsLoading(true);
+
+    try {
+      let qrCodeUrl = eWalletData.qrCodeImage;
+      
+      if (qrCodeFile) {
+        // In a real app, upload to cloud storage
+        // For now, use the preview URL
+        qrCodeUrl = qrCodePreview;
+      }
+
+      const updatedEWalletDetails = {
+        provider: eWalletData.provider,
+        accountNumber: eWalletData.accountNumber,
+        accountName: eWalletData.accountName,
+        qrCodeImage: qrCodeUrl
+      };
+
+      // Update the e-wallet details
+      await updateEWalletDetails(updatedEWalletDetails);
+
+      // Update local state to reflect the saved data
+      setEWalletData(updatedEWalletDetails);
+      setQrCodeFile(null);
+      setQrCodePreview('');
+
+      toast.success('E-wallet settings saved successfully!');
+    } catch (error) {
+      toast.error('Failed to save e-wallet settings');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleRemoveQrCode = () => {
+    setQrCodeFile(null);
+    setQrCodePreview('');
+    setEWalletData(prev => ({ ...prev, qrCodeImage: '' }));
+  };
+
   const tabs = [
     { id: 'profile', label: 'Profile Settings', icon: User },
+    ...(user?.role === 'seller' ? [{ id: 'ewallet', label: 'E-wallet Settings', icon: Wallet }] : []),
     { id: 'language', label: 'Language', icon: Globe },
     { id: 'notifications', label: 'Notifications', icon: Bell }
   ];
@@ -350,6 +428,163 @@ export const Settings: React.FC = () => {
                       <span>Save Preferences</span>
                     </button>
                   </div>
+                </div>
+              )}
+
+              {activeTab === 'ewallet' && user?.role === 'seller' && (
+                <div className="p-6">
+                  <div className="flex items-center space-x-3 mb-6">
+                    <Wallet size={24} className="text-green-600" />
+                    <div>
+                      <h2 className="text-2xl font-bold text-gray-900">E-wallet Settings</h2>
+                      <p className="text-gray-600">Set up your e-wallet for receiving payments</p>
+                    </div>
+                  </div>
+
+                  <form onSubmit={handleSaveEWallet} className="space-y-6">
+                    <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
+                      <div className="flex items-start space-x-3">
+                        <div className="bg-blue-100 rounded-full p-2">
+                          <Wallet size={20} className="text-blue-600" />
+                        </div>
+                        <div>
+                          <h3 className="font-semibold text-blue-900 mb-1">Why set up e-wallet?</h3>
+                          <p className="text-sm text-blue-800">
+                            When buyers choose e-wallet payment, they'll see your QR code and account details 
+                            to send payment directly to you. This makes transactions faster and more convenient.
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                          E-wallet Provider *
+                        </label>
+                        <select
+                          value={eWalletData.provider}
+                          onChange={(e) => setEWalletData(prev => ({ ...prev, provider: e.target.value }))}
+                          className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
+                          required
+                        >
+                          <option value="">Select Provider</option>
+                          <option value="GCash">GCash</option>
+                          <option value="Maya">Maya (PayMaya)</option>
+                          <option value="PayPal">PayPal</option>
+                          <option value="GrabPay">GrabPay</option>
+                          <option value="Other">Other</option>
+                        </select>
+                      </div>
+
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                          Account Holder Name *
+                        </label>
+                        <input
+                          type="text"
+                          value={eWalletData.accountName}
+                          onChange={(e) => setEWalletData(prev => ({ ...prev, accountName: e.target.value }))}
+                          className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
+                          placeholder="Full name as registered"
+                          required
+                        />
+                      </div>
+
+                      <div className="md:col-span-2">
+                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                          Account Number/Mobile Number *
+                        </label>
+                        <input
+                          type="text"
+                          value={eWalletData.accountNumber}
+                          onChange={(e) => setEWalletData(prev => ({ ...prev, accountNumber: e.target.value }))}
+                          className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
+                          placeholder="e.g., 09123456789"
+                          required
+                        />
+                      </div>
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        QR Code Image
+                      </label>
+                      <p className="text-sm text-gray-600 mb-4">
+                        Upload your e-wallet QR code so buyers can easily scan and pay you.
+                      </p>
+
+                      {(qrCodePreview || eWalletData.qrCodeImage) ? (
+                        <div className="space-y-4">
+                          <div className="relative inline-block">
+                            <img
+                              src={qrCodePreview || eWalletData.qrCodeImage}
+                              alt="QR Code Preview"
+                              className="w-48 h-48 object-contain border-2 border-dashed border-gray-300 rounded-lg p-4"
+                            />
+                            <button
+                              type="button"
+                              onClick={handleRemoveQrCode}
+                              className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full p-1 hover:bg-red-600 transition-colors"
+                            >
+                              <X size={16} />
+                            </button>
+                          </div>
+                          <div>
+                            <label className="bg-gray-500 text-white px-4 py-2 rounded-lg cursor-pointer hover:bg-gray-600 transition-colors inline-flex items-center space-x-2">
+                              <Camera size={16} />
+                              <span>Change QR Code</span>
+                              <input
+                                type="file"
+                                accept="image/*"
+                                onChange={handleQrCodeUpload}
+                                className="hidden"
+                              />
+                            </label>
+                          </div>
+                        </div>
+                      ) : (
+                        <div className="border-2 border-dashed border-gray-300 rounded-lg p-8 text-center">
+                          <Upload size={32} className="mx-auto text-gray-400 mb-4" />
+                          <p className="text-gray-600 mb-4">
+                            Drag and drop your QR code image, or click to browse
+                          </p>
+                          <label className="bg-green-500 text-white px-6 py-2 rounded-lg cursor-pointer hover:bg-green-600 transition-colors inline-flex items-center space-x-2">
+                            <Upload size={16} />
+                            <span>Upload QR Code</span>
+                            <input
+                              type="file"
+                              accept="image/*"
+                              onChange={handleQrCodeUpload}
+                              className="hidden"
+                            />
+                          </label>
+                          <p className="text-xs text-gray-500 mt-2">
+                            Supports JPG, PNG, GIF up to 5MB
+                          </p>
+                        </div>
+                      )}
+                    </div>
+
+                    <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
+                      <h4 className="font-semibold text-yellow-900 mb-2">Important Notes:</h4>
+                      <ul className="text-sm text-yellow-800 space-y-1">
+                        <li>• Make sure your QR code is clear and scannable</li>
+                        <li>• Double-check your account details for accuracy</li>
+                        <li>• Keep your e-wallet account active to receive payments</li>
+                        <li>• You can update these details anytime</li>
+                      </ul>
+                    </div>
+
+                    <button
+                      type="submit"
+                      disabled={isLoading}
+                      className="bg-green-500 text-white px-6 py-3 rounded-lg font-medium hover:bg-green-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center space-x-2"
+                    >
+                      <Save size={20} />
+                      <span>{isLoading ? 'Saving...' : 'Save E-wallet Settings'}</span>
+                    </button>
+                  </form>
                 </div>
               )}
             </div>
