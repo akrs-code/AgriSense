@@ -5,7 +5,7 @@ import { useProductStore } from '../../stores/productStore';
 import { ProductCard } from '../common/ProductCard';
 import { ProductModal } from '../common/ProductModal';
 import { AddCropForm } from './AddCropForm';
-import { Product } from '../../types';
+import { Product } from '../../types/product.types';
 import { Link } from 'react-router-dom';
 import toast from 'react-hot-toast';
 
@@ -19,9 +19,9 @@ export const SellerDashboard: React.FC = () => {
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
   
   const seller = user as any;
-  const myProducts = products.filter(p => p.sellerId === user?.id);
-  const activeProducts = myProducts.filter(p => p.isActive);
-  const totalRevenue = myProducts.reduce((sum, p) => sum + (p.price * (1000 - p.stock)), 0);
+  const myProducts = products.filter(p => p.seller_id === user?.id);
+  const activeProducts = myProducts.filter(p => p.is_active);
+  const totalRevenue = myProducts.reduce((sum, p) => sum + (p.price * (1000 - p.quantity)), 0);
   const isVerified = seller?.verificationStatus === 'approved';
 
   const stats = [
@@ -138,7 +138,7 @@ export const SellerDashboard: React.FC = () => {
           <div className="flex items-center justify-between">
             <div>
               <h1 className="text-3xl font-bold text-gray-900">Seller Dashboard</h1>
-              <p className="text-gray-600 mt-1">Welcome back, {user?.name}!</p>
+              <p className="text-gray-600 mt-1">Welcome back , {user?.name}!</p>
               {isVerified && (
                 <div className="flex items-center space-x-2 mt-2">
                   <div className="w-4 h-4 bg-green-500 rounded-full"></div>
@@ -246,16 +246,16 @@ export const SellerDashboard: React.FC = () => {
                     {/* Status Badge */}
                     <div className="absolute top-3 left-3">
                       <span className={`px-2 py-1 rounded-full text-xs font-medium ${
-                        product.isActive 
+                        product.is_active 
                           ? 'bg-green-100 text-green-800' 
                           : 'bg-gray-100 text-gray-800'
                       }`}>
-                        {product.isActive ? 'Active' : 'Inactive'}
+                        {product.is_active ? 'Active' : 'Inactive'}
                       </span>
                     </div>
 
                     {/* Stock Warning */}
-                    {product.stock < 10 && product.stock > 0 && (
+                    {product.quantity < 10 && product.quantity > 0 && (
                       <div className="absolute top-3 right-3">
                         <span className="px-2 py-1 bg-yellow-100 text-yellow-800 rounded-full text-xs font-medium">
                           Low Stock
@@ -263,7 +263,7 @@ export const SellerDashboard: React.FC = () => {
                       </div>
                     )}
 
-                    {product.stock === 0 && (
+                    {product.quantity === 0 && (
                       <div className="absolute top-3 right-3">
                         <span className="px-2 py-1 bg-red-100 text-red-800 rounded-full text-xs font-medium">
                           Out of Stock
@@ -323,10 +323,10 @@ const EditProductModal: React.FC<EditProductModalProps> = ({ product, onClose, o
     variety: product.variety,
     description: product.description,
     price: product.price.toString(),
-    stock: product.stock.toString(),
+    stock: product.quantity.toString(),
     unit: product.unit,
     condition: product.condition,
-    isActive: product.isActive
+    isActive: product.is_active
   });
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
@@ -353,10 +353,10 @@ const EditProductModal: React.FC<EditProductModalProps> = ({ product, onClose, o
         variety: formData.variety,
         description: formData.description,
         price: parseFloat(formData.price),
-        stock: parseInt(formData.stock),
+        quantity: parseInt(formData.stock),
         unit: formData.unit,
-        condition: formData.condition as 'fresh' | 'good' | 'fair',
-        isActive: formData.isActive
+        condition: formData.condition,
+        is_active: formData.isActive
       });
 
       onSuccess();

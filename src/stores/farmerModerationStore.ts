@@ -1,134 +1,187 @@
 import { create } from 'zustand';
 import toast from 'react-hot-toast';
+import { Seller } from '../types';
+import { ApproveFarmerDTO, GetFarmerProfilesFilterDTO, RejectFarmerDTO } from '../types/farmerModeration.types';
+import { VerificationStatus } from '../types/enums';
 
-export interface FarmerProfile {
-  id: string;
-  name: string;
-  email: string;
-  phone: string;
-  businessName: string;
-  registrationDate: Date;
-  location: {
-    lat: number;
-    lng: number;
-    address: string;
-  };
-  status: 'pending' | 'approved' | 'rejected';
-  documentsSubmitted: boolean;
-  verificationNotes?: string;
-}
+
+const getAuthToken = (): string | null => {
+  return localStorage.getItem('authToken');
+};
+
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
+
+const farmerApiClient = {
+  // Fetches farmer profiles, optionally filtered by status
+  fetchFarmerProfiles: async (filters?: GetFarmerProfilesFilterDTO): Promise<Seller[]> => {
+    const token = getAuthToken();
+    if (!token) {
+      throw new Error('Authentication token not found. Please log in.');
+    }
+
+    const headers: HeadersInit = {
+      'Authorization': `Bearer ${token}`,
+    };
+
+    const queryParams = new URLSearchParams();
+    if (filters?.status) {
+      // Assuming backend uses 'status' or 'verification_status' as query param
+      queryParams.append('status', filters.status);
+    }
+    // Add other filter parameters as needed (e.g., name, email, businessName)
+
+    const url = `${API_BASE_URL}/farmers${queryParams.toString() ? `?${queryParams.toString()}` : ''}`;
+
+    const response = await fetch(url, {
+      method: 'GET',
+      headers: headers,
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({ message: 'Failed to fetch farmer profiles.' }));
+      throw new Error(errorData.message || 'Failed to fetch farmer profiles.');
+    }
+
+    // Backend should return an array of Seller objects
+    const farmerProfiles: Seller[] = await response.json();
+    return farmerProfiles;
+  },
+
+  // Approves a farmer profile
+  approveFarmer: async (farmerId: string, data?: ApproveFarmerDTO): Promise<Seller> => {
+    const token = getAuthToken();
+    if (!token) {
+      throw new Error('Authentication token not found. Please log in.');
+    }
+
+    const response = await fetch(`${API_BASE_URL}/farmers/${farmerId}/approve`, {
+      method: 'PATCH',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`,
+      },
+      body: data ? JSON.stringify(data) : undefined, // Include body if ApproveFarmerDTO has fields
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({ message: 'Failed to approve farmer.' }));
+      throw new Error(errorData.message || 'Failed to approve farmer.');
+    }
+
+    // Backend should return the updated Seller object
+    const updatedFarmer: Seller = await response.json();
+    return updatedFarmer;
+  },
+
+  // Rejects a farmer profile
+  rejectFarmer: async (farmerId: string, data: RejectFarmerDTO): Promise<Seller> => {
+    const token = getAuthToken();
+    if (!token) {
+      throw new Error('Authentication token not found. Please log in.');
+    }
+
+    const response = await fetch(`${API_BASE_URL}/farmers/${farmerId}/reject`, {
+      method: 'PATCH', // Or PUT
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`,
+      },
+      body: JSON.stringify(data), // Send the reason in the body
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({ message: 'Failed to reject farmer.' }));
+      throw new Error(errorData.message || 'Failed to reject farmer.');
+    }
+
+    // Backend should return the updated Seller object
+    const updatedFarmer: Seller = await response.json();
+    return updatedFarmer;
+  },
+};
+
+
 
 interface FarmerModerationState {
-  farmerProfiles: FarmerProfile[];
+  farmerProfiles: Seller[]; // Use Seller[] instead of FarmerProfile[]
   isLoading: boolean;
-  approveFarmer: (farmerId: string) => Promise<void>;
+  fetchFarmerProfiles: (filters?: GetFarmerProfilesFilterDTO) => Promise<void>;
+  approveFarmer: (farmerId: string, data?: ApproveFarmerDTO) => Promise<void>;
   rejectFarmer: (farmerId: string, reason?: string) => Promise<void>;
-  getFarmersByStatus: (status: FarmerProfile['status']) => FarmerProfile[];
+  getFarmersByStatus: (status: VerificationStatus) => Seller[]; // Use VerificationStatus
 }
 
-const mockFarmerProfiles: FarmerProfile[] = [
-  {
-    id: 'farmer-1',
-    name: 'Juan Dela Cruz',
-    email: 'juan@delacruzfarm.com',
-    phone: '+63 912 345 6789',
-    businessName: 'Dela Cruz Organic Farm',
-    registrationDate: new Date('2024-01-15'),
-    location: {
-      lat: 15.4817,
-      lng: 120.5979,
-      address: 'Cabanatuan, Nueva Ecija'
-    },
-    status: 'pending',
-    documentsSubmitted: true
-  },
-  {
-    id: 'farmer-2',
-    name: 'Maria Santos',
-    email: 'maria@santosfarm.com',
-    phone: '+63 923 456 7890',
-    businessName: 'Santos Family Farm',
-    registrationDate: new Date('2024-01-18'),
-    location: {
-      lat: 14.6091,
-      lng: 121.0223,
-      address: 'Quezon, Nueva Ecija'
-    },
-    status: 'pending',
-    documentsSubmitted: true
-  },
-  {
-    id: 'farmer-3',
-    name: 'Carlos Rodriguez',
-    email: 'carlos@rodriguezfarm.com',
-    phone: '+63 934 567 8901',
-    businessName: 'Rodriguez Organic Farm',
-    registrationDate: new Date('2024-01-10'),
-    location: {
-      lat: 15.2500,
-      lng: 120.8833,
-      address: 'Tarlac City, Tarlac'
-    },
-    status: 'approved',
-    documentsSubmitted: true,
-    verificationNotes: 'All documents verified. Farm location confirmed.'
-  }
-];
 
 export const useFarmerModerationStore = create<FarmerModerationState>((set, get) => ({
-  farmerProfiles: mockFarmerProfiles,
+  farmerProfiles: [], // Initialize with an empty array, data will be fetched from API
   isLoading: false,
 
-  approveFarmer: async (farmerId: string) => {
+  fetchFarmerProfiles: async (filters?: GetFarmerProfilesFilterDTO) => {
     set({ isLoading: true });
-    
     try {
-      // Simulate API call
-      await new Promise(resolve => setTimeout(resolve, 500));
-      
+      const fetchedFarmers = await farmerApiClient.fetchFarmerProfiles(filters);
+      set({
+        farmerProfiles: fetchedFarmers,
+        isLoading: false,
+      });
+      console.log('Farmer profiles fetched successfully:', fetchedFarmers);
+    } catch (error: any) {
+      set({ isLoading: false });
+      toast.error(error.message || 'Failed to fetch farmer profiles.');
+      console.error('Error fetching farmer profiles:', error);
+      throw error;
+    }
+  },
+
+  approveFarmer: async (farmerId: string, data?: ApproveFarmerDTO) => {
+    set({ isLoading: true });
+    try {
+      const updatedFarmer = await farmerApiClient.approveFarmer(farmerId, data);
+
       set(state => ({
         farmerProfiles: state.farmerProfiles.map(farmer =>
-          farmer.id === farmerId
-            ? { ...farmer, status: 'approved' as const, verificationNotes: 'Approved by admin' }
-            : farmer
+          farmer.id === farmerId ? updatedFarmer : farmer
         ),
-        isLoading: false
+        isLoading: false,
       }));
-      
-      toast.success('✅ Farmer approved');
-    } catch (error) {
+      toast.success(`Farmer ${updatedFarmer.name} approved successfully!`);
+      console.log('Farmer approved successfully:', updatedFarmer);
+    } catch (error: any) {
       set({ isLoading: false });
-      toast.error('Failed to approve farmer');
+      toast.error(error.message || 'Failed to approve farmer.');
+      console.error('Error approving farmer:', error);
       throw error;
     }
   },
 
   rejectFarmer: async (farmerId: string, reason?: string) => {
     set({ isLoading: true });
-    
+
     try {
-      // Simulate API call
-      await new Promise(resolve => setTimeout(resolve, 500));
-      
+      const requestBody: RejectFarmerDTO = { reason };
+      const updatedFarmer = await farmerApiClient.rejectFarmer(farmerId, requestBody); // Call the actual API client
+
       set(state => ({
         farmerProfiles: state.farmerProfiles.map(farmer =>
           farmer.id === farmerId
-            ? { ...farmer, status: 'rejected' as const, verificationNotes: reason || 'Rejected by admin' }
+            ? updatedFarmer // Replace with the actual updated farmer from backend
             : farmer
         ),
         isLoading: false
       }));
-      
-      toast.success('❌ Farmer rejected');
-    } catch (error) {
+
+      toast.success('❌ Farmer rejected successfully!');
+    } catch (error: any) {
       set({ isLoading: false });
-      toast.error('Failed to reject farmer');
+      toast.error(error.message || 'Failed to reject farmer.');
+      console.error('Error rejecting farmer:', error);
       throw error;
     }
   },
 
-  getFarmersByStatus: (status: FarmerProfile['status']) => {
+  getFarmersByStatus: (status: VerificationStatus) => {
     const { farmerProfiles } = get();
-    return farmerProfiles.filter(farmer => farmer.status === status);
+    // Filter by verificationStatus property on the Seller object
+    return farmerProfiles.filter(farmer => farmer.verificationStatus === status);
   }
 }));

@@ -2,7 +2,8 @@ import React, { useState } from 'react';
 import { Package, Star, Loader2, MapPin, ShoppingCart, RotateCcw } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { useAuthStore } from '../../stores/authStore';
-import { useOrderStore, Order } from '../../stores/orderStore';
+import { useOrderStore } from '../../stores/orderStore';
+import { OrderResponseDTO } from '../../types/order.types';
 import { useCartStore } from '../../stores/cartStore';
 import { useProductStore } from '../../stores/productStore';
 import { useReviewStore } from '../../stores/reviewStore';
@@ -72,9 +73,9 @@ export const BuyerDashboard: React.FC = () => {
   const { products } = useProductStore();
   const { hasReviewed } = useReviewStore();
   const [showReorderModal, setShowReorderModal] = useState(false);
-  const [pendingReorder, setPendingReorder] = useState<{ order: Order; product: any } | null>(null);
+  const [pendingReorder, setPendingReorder] = useState<{ order: OrderResponseDTO; product: any } | null>(null);
   const [showReviewModal, setShowReviewModal] = useState(false);
-  const [reviewingOrder, setReviewingOrder] = useState<Order | null>(null);
+  const [reviewingOrder, setReviewingOrder] = useState<OrderResponseDTO | null>(null);
 
   const buyerOrders = user ? getOrdersByBuyer(user.id) : [];
   const recentOrders = buyerOrders.slice(0, 5); // Show only 5 most recent
@@ -83,16 +84,16 @@ export const BuyerDashboard: React.FC = () => {
   const pending = buyerOrders.filter((o) => o.status === 'pending').length;
   const reviewsGiven = buyerOrders.filter((o) => hasReviewed(o.id)).length;
 
-  const handleReorder = async (order: Order) => {
+  const handleReorder = async (order: OrderResponseDTO) => {
     // Find the product in the store
-    const product = products.find(p => p.id === order.productId);
+    const product = products.find(p => p.id === order.order_items[0].product_id);
     
     if (!product) {
       toast.error('Product is no longer available');
       return;
     }
 
-    if (!product.isActive || product.stock === 0) {
+    if (!product.is_active || product.quantity === 0) {
       toast.error('Product is currently unavailable');
       return;
     }
@@ -133,7 +134,7 @@ export const BuyerDashboard: React.FC = () => {
     setPendingReorder(null);
   };
 
-  const handleOpenReviewModal = (order: Order) => {
+  const handleOpenReviewModal = (order: OrderResponseDTO) => {
     setReviewingOrder(order);
     setShowReviewModal(true);
   };
@@ -225,21 +226,21 @@ export const BuyerDashboard: React.FC = () => {
               >
                 <div className="flex items-start space-x-4 flex-1">
                   <img
-                    src={order.productImage}
-                    alt={order.productName}
+                    src={order.order_items[0].product_image}
+                    alt={order.order_items[0].product_name}
                     className="w-16 h-16 rounded-lg object-cover"
                   />
                   <div className="flex-1 space-y-2">
-                    <h3 className="text-lg font-semibold text-gray-900">{order.productName}</h3>
+                    <h3 className="text-lg font-semibold text-gray-900">{order.order_items[0].product_name}</h3>
                     <p className="text-sm text-gray-700">
-                      From <span className="font-medium text-green-700">{order.sellerName}</span>
+                      From <span className="font-medium text-green-700">{order.seller_name}</span>
                     </p>
                     <p className="text-sm text-gray-600 flex items-center gap-1">
                       <MapPin size={14} className="text-gray-400" />
-                      {order.deliveryAddress}
+                      {order.delivery_location?.address}
                     </p>
                     <p className="text-sm text-gray-600">
-                      Quantity: {order.quantity} {order.unit} • ₱{order.totalPrice.toLocaleString()}
+                      Quantity: {order.order_items.length} {order.order_items[0].unit} • ₱{order.total_price.toLocaleString()}
                     </p>
                   </div>
                 </div>
@@ -260,7 +261,7 @@ export const BuyerDashboard: React.FC = () => {
                         <Star size={16} className="mr-1 fill-current" /> Reviewed
                       </span>
                     )}
-                    {order.canReorder && (
+                    {order.can_reorder && (
                       <button
                         onClick={() => handleReorder(order)}
                         className="inline-flex items-center text-sm text-green-600 hover:text-green-800 font-medium"

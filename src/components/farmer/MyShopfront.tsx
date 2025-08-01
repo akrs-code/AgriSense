@@ -4,7 +4,7 @@ import { useProductStore } from '../../stores/productStore';
 import { useAuthStore } from '../../stores/authStore';
 import { ProductCard } from '../common/ProductCard';
 import { ProductModal } from '../common/ProductModal';
-import { Product } from '../../types';
+import { Product } from '../../types/product.types';
 import { Link } from 'react-router-dom';
 import { AddCropForm } from '../seller/AddCropForm';
 import toast from 'react-hot-toast';
@@ -17,10 +17,10 @@ export const MyShopfront: React.FC = () => {
 
   const seller = user as any;
   const isVerified = seller?.verificationStatus === 'approved';
-  const myProducts = products.filter(p => p.sellerId === user?.id);
-  const activeProducts = myProducts.filter(p => p.isActive);
-  const totalStock = myProducts.reduce((sum, p) => sum + p.stock, 0);
-  const totalValue = myProducts.reduce((sum, p) => sum + (p.price * p.stock), 0);
+  const myProducts = products.filter(p => p.seller_id === user?.id);
+  const activeProducts = myProducts.filter(p => p.is_active);
+  const totalStock = myProducts.reduce((sum, p) => sum + p.quantity, 0);
+  const totalValue = myProducts.reduce((sum, p) => sum + (p.price * p.quantity), 0);
 
   // Listen for add crop form trigger from sidebar
   useEffect(() => {
@@ -59,8 +59,6 @@ export const MyShopfront: React.FC = () => {
       return;
     }
     
-    // In a real app, this would open an edit form
-    toast.info('Edit functionality coming soon!');
   };
 
   const handleToggleProductStatus = async (productId: string, currentStatus: boolean) => {
@@ -70,7 +68,7 @@ export const MyShopfront: React.FC = () => {
     }
 
     try {
-      await updateProduct(productId, { isActive: !currentStatus });
+      await updateProduct(productId, { is_active: !currentStatus });
       toast.success(`Product ${currentStatus ? 'deactivated' : 'activated'} successfully`);
     } catch (error) {
       toast.error('Failed to update product status');
@@ -291,16 +289,16 @@ export const MyShopfront: React.FC = () => {
                     {/* Status Badge */}
                     <div className="absolute top-3 left-3">
                       <span className={`px-2 py-1 rounded-full text-xs font-medium ${
-                        product.isActive 
+                        product.is_active 
                           ? 'bg-green-100 text-green-800' 
                           : 'bg-gray-100 text-gray-800'
                       }`}>
-                        {product.isActive ? 'Active' : 'Inactive'}
+                        {product.is_active ? 'Active' : 'Inactive'}
                       </span>
                     </div>
 
                     {/* Stock Warning */}
-                    {product.stock < 10 && product.stock > 0 && (
+                    {product.quantity < 10 && product.quantity > 0 && (
                       <div className="absolute top-3 right-3">
                         <span className="px-2 py-1 bg-yellow-100 text-yellow-800 rounded-full text-xs font-medium">
                           Low Stock
@@ -308,7 +306,7 @@ export const MyShopfront: React.FC = () => {
                       </div>
                     )}
 
-                    {product.stock === 0 && (
+                    {product.quantity === 0 && (
                       <div className="absolute top-3 right-3">
                         <span className="px-2 py-1 bg-red-100 text-red-800 rounded-full text-xs font-medium">
                           Out of Stock

@@ -1,23 +1,137 @@
 import { create } from 'zustand';
 import toast from 'react-hot-toast';
+import { CropListing, FlagCropDTO, GetCropListingsFilterDTO, RejectCropDTO } from '../types/cropListing.types';
 
-export interface CropListing {
-  id: string;
-  cropName: string;
-  variety: string;
-  farmerName: string;
-  farmerId: string;
-  price: number;
-  unit: string;
-  quantity: number;
-  submissionDate: Date;
-  status: 'pending' | 'approved' | 'rejected' | 'flagged';
-  images: string[];
-  description: string;
-  location: string;
-  isSuspicious: boolean;
-  flagReason?: string;
-}
+
+const getAuthToken = (): string | null => {
+  return localStorage.getItem('authToken');
+};
+
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
+
+
+const apiClient = {
+  // Fetches crop listings, optionally filtered by status
+  fetchCropListings: async (filters?: GetCropListingsFilterDTO): Promise<CropListing[]> => {
+    const token = getAuthToken();
+    if (!token) {
+      throw new Error('Authentication token not found. Please log in.');
+    }
+
+    const headers: HeadersInit = {
+      'Authorization': `Bearer ${token}`,
+    };
+
+    // Construct query parameters based on filters
+    const queryParams = new URLSearchParams();
+    if (filters?.status) {
+      queryParams.append('status', filters.status);
+    }
+    if (filters?.farmerId) {
+      queryParams.append('farmer_id', filters.farmerId); // Use snake_case for backend param
+    }
+    // Add other filter parameters as needed (e.g., page, limit, date ranges)
+
+    const url = `${API_BASE_URL}/crop-listings${queryParams.toString() ? `?${queryParams.toString()}` : ''}`;
+
+    const response = await fetch(url, {
+      method: 'GET',
+      headers: headers,
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({ message: 'Failed to fetch crop listings.' }));
+      throw new Error(errorData.message || 'Failed to fetch crop listings.');
+    }
+
+    const cropListings: CropListing[] = await response.json();
+
+    return cropListings;
+  },
+
+  // Approves a crop listing
+  approveCrop: async (cropId: string): Promise<CropListing> => {
+    const token = getAuthToken();
+    if (!token) {
+      throw new Error('Authentication token not found. Please log in.');
+    }
+
+    const response = await fetch(`${API_BASE_URL}/crop-listings/${cropId}/approve`, {
+      method: 'PATCH', // PATCH is generally preferred for partial updates
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`,
+      },
+      // No body typically needed for simple approval if ID is in URL
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({ message: 'Failed to approve crop.' }));
+      throw new Error(errorData.message || 'Failed to approve crop.');
+    }
+
+    // Backend should return the updated crop listing
+    const updatedCrop: CropListing = await response.json();
+    return updatedCrop;
+  },
+
+  // Rejects a crop listing
+  rejectCrop: async (cropId: string, reason?: string): Promise<CropListing> => {
+    const token = getAuthToken();
+    if (!token) {
+      throw new Error('Authentication token not found. Please log in.');
+    }
+
+    const requestBody: RejectCropDTO = { reason };
+
+    const response = await fetch(`${API_BASE_URL}/crop-listings/${cropId}/reject`, {
+      method: 'PATCH', // PATCH is generally preferred for partial updates
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`,
+      },
+      body: JSON.stringify(requestBody), // Send the reason in the body
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({ message: 'Failed to reject crop.' }));
+      throw new Error(errorData.message || 'Failed to reject crop.');
+    }
+
+    // Backend should return the updated crop listing
+    const updatedCrop: CropListing = await response.json();
+    return updatedCrop;
+  },
+
+  // Flags a crop listing
+  flagCrop: async (cropId: string, reason: string): Promise<CropListing> => {
+    const token = getAuthToken();
+    if (!token) {
+      throw new Error('Authentication token not found. Please log in.');
+    }
+
+    const requestBody: FlagCropDTO = { reason }; // Reason is required for FlagCropDTO
+
+    const response = await fetch(`${API_BASE_URL}/crop-listings/${cropId}/flag`, {
+      method: 'PATCH', // PATCH is generally preferred for partial updates
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`,
+      },
+      body: JSON.stringify(requestBody), // Send the reason in the body
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({ message: 'Failed to flag crop.' }));
+      throw new Error(errorData.message || 'Failed to flag crop.');
+    }
+
+    // Backend should return the updated crop listing
+    const updatedCrop: CropListing = await response.json();
+    return updatedCrop;
+  },
+};
+
 
 interface CropModerationState {
   cropListings: CropListing[];
@@ -28,130 +142,98 @@ interface CropModerationState {
   getCropsByStatus: (status: CropListing['status']) => CropListing[];
 }
 
-const mockCropListings: CropListing[] = [
-  {
-    id: 'crop-1',
-    cropName: 'Premium Rice',
-    variety: 'Jasmine',
-    farmerName: 'Juan Dela Cruz',
-    farmerId: 'farmer-1',
-    price: 45,
-    unit: 'kg',
-    quantity: 500,
-    submissionDate: new Date('2024-01-20'),
-    status: 'pending',
-    images: ['https://images.pexels.com/photos/164504/pexels-photo-164504.jpeg'],
-    description: 'High-quality jasmine rice, freshly harvested from organic farm.',
-    location: 'Cabanatuan, Nueva Ecija',
-    isSuspicious: false
-  },
-  {
-    id: 'crop-2',
-    cropName: 'Sweet Corn',
-    variety: 'Golden Sweet',
-    farmerName: 'Maria Santos',
-    farmerId: 'farmer-2',
-    price: 35,
-    unit: 'kg',
-    quantity: 200,
-    submissionDate: new Date('2024-01-18'),
-    status: 'flagged',
-    images: ['https://images.pexels.com/photos/547263/pexels-photo-547263.jpeg'],
-    description: 'Fresh sweet corn perfect for boiling and grilling.',
-    location: 'Manila, Metro Manila',
-    isSuspicious: true,
-    flagReason: 'Urban location suspicious for corn farming'
-  },
-  {
-    id: 'crop-3',
-    cropName: 'Organic Tomatoes',
-    variety: 'Cherry',
-    farmerName: 'Carlos Rodriguez',
-    farmerId: 'farmer-3',
-    price: 80,
-    unit: 'kg',
-    quantity: 100,
-    submissionDate: new Date('2024-01-15'),
-    status: 'approved',
-    images: ['https://images.pexels.com/photos/533280/pexels-photo-533280.jpeg'],
-    description: 'Organic cherry tomatoes grown without pesticides.',
-    location: 'Tarlac City, Tarlac',
-    isSuspicious: false
-  }
-];
+
 
 export const useCropModerationStore = create<CropModerationState>((set, get) => ({
-  cropListings: mockCropListings,
+  cropListings: [],
   isLoading: false,
+
+  fetchCropListings: async (filters?: GetCropListingsFilterDTO) => {
+    set({ isLoading: true });
+    try {
+      const fetchedCrops = await apiClient.fetchCropListings(filters);
+      set({
+        cropListings: fetchedCrops,
+        isLoading: false,
+      });
+      console.log('Crop listings fetched successfully:', fetchedCrops);
+    } catch (error: any) {
+      set({ isLoading: false });
+      toast.error(error.message || 'Failed to fetch crop listings.');
+      console.error('Error fetching crop listings:', error);
+      // Re-throw if calling component needs to handle it further
+      throw error;
+    }
+  },
 
   approveCrop: async (cropId: string) => {
     set({ isLoading: true });
-    
+
     try {
-      // Simulate API call
-      await new Promise(resolve => setTimeout(resolve, 500));
-      
+      const updatedCrop = await apiClient.approveCrop(cropId); // Call the actual API client
+
       set(state => ({
         cropListings: state.cropListings.map(crop =>
           crop.id === cropId
-            ? { ...crop, status: 'approved' as const }
+            ? updatedCrop // Replace with the actual updated crop from backend
             : crop
         ),
         isLoading: false
       }));
-      
-      toast.success('✅ Crop approved');
-    } catch (error) {
+
+      toast.success('✅ Crop approved successfully!');
+    } catch (error: any) { // Catch error as 'any' for better error message handling
       set({ isLoading: false });
-      toast.error('Failed to approve crop');
-      throw error;
+      toast.error(error.message || 'Failed to approve crop.');
+      console.error('Error approving crop:', error);
+      throw error; // Re-throw for component to handle if needed
     }
   },
 
   rejectCrop: async (cropId: string, reason?: string) => {
     set({ isLoading: true });
-    
+
     try {
-      // Simulate API call
-      await new Promise(resolve => setTimeout(resolve, 500));
-      
+      const updatedCrop = await apiClient.rejectCrop(cropId, reason); // Call the actual API client
+
       set(state => ({
         cropListings: state.cropListings.map(crop =>
           crop.id === cropId
-            ? { ...crop, status: 'rejected' as const, flagReason: reason }
+            ? updatedCrop // Replace with the actual updated crop from backend
             : crop
         ),
         isLoading: false
       }));
-      
-      toast.success('❌ Crop rejected');
-    } catch (error) {
+
+      toast.success('❌ Crop rejected successfully!');
+    } catch (error: any) {
       set({ isLoading: false });
-      toast.error('Failed to reject crop');
+      toast.error(error.message || 'Failed to reject crop.');
+      console.error('Error rejecting crop:', error);
       throw error;
     }
   },
 
   flagCrop: async (cropId: string, reason: string) => {
     set({ isLoading: true });
-    
+
     try {
-      // Simulate API call
-      await new Promise(resolve => setTimeout(resolve, 500));
-      
+      const updatedCrop = await apiClient.flagCrop(cropId, reason); // Call the actual API client
+
       set(state => ({
         cropListings: state.cropListings.map(crop =>
           crop.id === cropId
-            ? { ...crop, status: 'flagged' as const, flagReason: reason, isSuspicious: true }
+            ? updatedCrop // Replace with the actual updated crop from backend
             : crop
         ),
         isLoading: false
       }));
-      
-      toast.success('⚠️ Crop flagged for review');
-    } catch (error) {
+
+      toast.success('⚠️ Crop flagged for review!');
+    } catch (error: any) {
       set({ isLoading: false });
-      toast.error('Failed to flag crop');
+      toast.error(error.message || 'Failed to flag crop.');
+      console.error('Error flagging crop:', error);
       throw error;
     }
   },

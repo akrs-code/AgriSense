@@ -1,10 +1,10 @@
-import React, { useState } from 'react';
-import { Search, MapPin, Filter, ShoppingCart, TrendingUp } from 'lucide-react';
+import React, { useEffect, useState } from 'react';
+import { Search, MapPin, Filter, ShoppingCart, TrendingUp, Loader2, ChevronDown, ChevronUp } from 'lucide-react';
 import { useProductStore } from '../../stores/productStore';
 import { useAuthStore } from '../../stores/authStore';
 import { ProductCard } from '../common/ProductCard';
 import { ProductModal } from '../common/ProductModal';
-import { Product } from '../../types';
+import { Product } from '../../types/product.types';
 import { Link } from 'react-router-dom';
 
 export const BrowseProduct: React.FC = () => {
@@ -16,14 +16,29 @@ export const BrowseProduct: React.FC = () => {
     filters,
     setFilters,
     marketPrices,
+    fetchProducts,
+    fetchMarketPrices, 
+    isLoading
   } = useProductStore();
 
+  
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
   const [showFilters, setShowFilters] = useState(false);
+  const [showMarketPrices, setShowMarketPrices] = useState(true); // New state for collapsable market prices
+
+
 
   const filteredProducts = getFilteredProducts();
   const categories = ['Grains', 'Vegetables', 'Fruits', 'Herbs', 'Livestock'];
 
+  if (isLoading && filteredProducts.length === 0) {
+    return (
+      <div className="min-h-screen bg-neutral flex items-center justify-center">
+        <Loader2 className="animate-spin h-10 w-10 text-primary" />
+        <p className="ml-2 text-lg text-text">Loading products...</p>
+      </div>
+    );
+  }
   return (
     <div className="min-h-screen bg-neutral">
       {/* Header */}
@@ -34,7 +49,7 @@ export const BrowseProduct: React.FC = () => {
               <h1 className="text-3xl font-bold text-text">Marketplace</h1>
               <p className="text-text-muted mt-1 flex items-center">
                 <MapPin size={16} className="mr-1" />
-                {user?.location.address}
+                {user?.location?.address || 'Loading location...'} {/* Handle potential null location */}
               </p>
             </div>
             <Link
@@ -147,40 +162,53 @@ export const BrowseProduct: React.FC = () => {
       <div className="max-w-7xl mx-auto px-4 py-8">
         {/* Market Prices */}
         <div className="bg-white rounded-xl shadow-sm border border-neutral-border mb-8">
-          <div className="p-6 border-b border-neutral-border">
+          <div className="p-6 border-b border-neutral-border flex justify-between items-center">
             <h2 className="text-xl font-semibold text-text">Market Prices Today</h2>
+            <button
+              onClick={() => setShowMarketPrices(!showMarketPrices)}
+              className="text-text-muted hover:text-text transition-colors"
+              aria-expanded={showMarketPrices}
+              aria-controls="market-prices-content"
+            >
+              {showMarketPrices ? <ChevronUp size={20} /> : <ChevronDown size={20} />}
+            </button>
           </div>
-          <div className="p-6">
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              {marketPrices.map((price) => (
-                <div key={price.id} className="p-4 bg-neutral rounded-lg">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <h3 className="font-semibold text-text">{price.productName}</h3>
-                      <p className="text-sm text-text-muted">{price.region}</p>
-                    </div>
-                    <div className="text-right">
-                      <p className="text-lg font-bold text-secondary">
-                        ₱{price.averagePrice}/{price.unit}
-                      </p>
-                      <div
-                        className={`flex items-center text-xs ${
-                          price.trend === 'up'
-                            ? 'text-success'
-                            : price.trend === 'down'
-                            ? 'text-error'
-                            : 'text-text-muted'
-                        }`}
-                      >
-                        <span>{price.trend === 'up' ? '↗' : price.trend === 'down' ? '↘' : '→'}</span>
-                        <span className="ml-1">{price.trend}</span>
+          {showMarketPrices && (
+            <div id="market-prices-content" className="p-6">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                {marketPrices.map((price) => (
+                  <div key={price.id} className="p-4 bg-neutral rounded-lg">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <h3 className="font-semibold text-text">{price.crop_name}</h3>
+                        {price.specification && (
+                          <p className="text-sm text-text-muted">{price.specification}</p>
+                        )}
+                        <p className="text-sm text-text-muted">{price.region}</p>
+                      </div>
+                      <div className="text-right">
+                        <p className="text-lg font-bold text-secondary">
+                          ₱{price.price}/{price.unit}
+                        </p>
+                        <div
+                          className={`flex items-center text-xs ${
+                            price.trend === 'up'
+                              ? 'text-success'
+                              : price.trend === 'down'
+                              ? 'text-error'
+                              : 'text-text-muted'
+                          }`}
+                        >
+                          <span>{price.trend === 'up' ? '↗' : price.trend === 'down' ? '↘' : '→'}</span>
+                          <span className="ml-1">{price.trend}</span>
+                        </div>
                       </div>
                     </div>
                   </div>
-                </div>
-              ))}
+                ))}
+              </div>
             </div>
-          </div>
+          )}
         </div>
 
         {/* Products Grid */}
@@ -194,7 +222,7 @@ export const BrowseProduct: React.FC = () => {
           </div>
 
           <div className="p-6">
-            {filteredProducts.length === 0 ? (
+            {filteredProducts.length === 0 && !isLoading ? ( // Show "No products found" only if not loading and no products
               <div className="text-center py-12">
                 <ShoppingCart className="mx-auto h-12 w-12 text-text-muted mb-4" />
                 <h3 className="text-lg font-semibold text-text mb-2">No products found</h3>

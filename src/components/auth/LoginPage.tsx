@@ -22,12 +22,7 @@ export const LoginPage: React.FC = () => {
     }
 
     try {
-      // Convert phone to email for demo purposes
-      const email = formData.phone.includes('admin') ? 'admin@agrimarket.com' :
-                   formData.phone.includes('farmer') || formData.phone.includes('seller') ? 'seller@agrimarket.com' :
-                   'buyer@agrimarket.com';
-      
-      await login(email, formData.password);
+      await login({ phone: formData.phone, password: formData.password });
       toast.success('Login successful!');
       
       // Navigation will be handled by App.tsx based on user role

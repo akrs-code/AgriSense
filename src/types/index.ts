@@ -43,28 +43,28 @@ export interface Buyer extends User {
   favoriteProducts: string[];
 }
 
-export interface Product {
-  id: string;
-  sellerId: string;
-  name: string;
-  category: string;
-  variety: string;
-  description: string;
-  price: number;
-  unit: string;
-  stock: number;
-  images: string[];
-  location: {
-    lat: number;
-    lng: number;
-    address: string;
-  };
-  harvestDate: Date;
-  condition: 'fresh' | 'good' | 'fair';
-  isActive: boolean;
-  createdAt: Date;
-  updatedAt: Date;
-}
+// export interface Product {
+//   id: string;
+//   sellerId: string;
+//   name: string;
+//   category: string;
+//   variety: string;
+//   description: string;
+//   price: number;
+//   unit: string;
+//   stock: number;
+//   images: string[];
+//   location: {
+//     lat: number;
+//     lng: number;
+//     address: string;
+//   };
+//   harvestDate: Date;
+//   condition: 'fresh' | 'good' | 'fair';
+//   isActive: boolean;
+//   createdAt: Date;
+//   updatedAt: Date;
+// }
 
 export interface Review {
   id: string;

@@ -23,7 +23,7 @@ import { RatingsReviews } from './components/farmer/RatingsReviews';
 // Buyer Components
 import { BuyerDashboard } from './components/buyer/Dashboard';
 import { BrowseProduct } from './components/buyer/BrowseProduct';
-import { MyOrders as BuyerOrders } from './components/buyer/MyOrders';
+import  {MyOrders as BuyerOrders} from './components/buyer/MyOrders';
 import { BuyerMessages } from './components/buyer/BuyerMessages';
 import { Reviews } from './components/buyer/Reviews';
 import { MarketIntelligence as BuyerMarketIntelligence } from './components/buyer/MarketIntelligence';
@@ -39,17 +39,19 @@ import { MarketIntelligence as AdminMarketIntelligence } from './components/admi
 // Shared Components
 import { Settings } from './components/shared/Settings';
 import { Notifications } from './components/common/Notifications';
+import { useAppInitializer } from './hooks/useAppIntializer';
 
 function App() {
-  const { isAuthenticated, user } = useAuthStore();
+  const { isAuthenticated, user, isLoading } = useAuthStore();
   const [showSplash, setShowSplash] = useState(true);
 
-  useEffect(() => {
-    const timer = setTimeout(() => setShowSplash(false), 3000);
-    return () => clearTimeout(timer);
-  }, []);
+  const isInitializing = useAppInitializer();
+  // Use isLoading from authStore directly for the splash screen
+  if (isInitializing) {
+    return <SplashScreen onComplete={() => setShowSplash(false)}/>; // SplashScreen can be a simple loading spinner or your existing component
+  }
 
-  if (showSplash) return <SplashScreen onComplete={() => setShowSplash(false)} />;
+  // if (showSplash) return <SplashScreen onComplete={() => setShowSplash(false)} />;
 
   if (!isAuthenticated) {
     return (

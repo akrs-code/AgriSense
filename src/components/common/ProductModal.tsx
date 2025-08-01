@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { X, MapPin, Calendar, Star, MessageSquare, Phone, ShoppingCart, Edit, Trash2 } from 'lucide-react';
-import { Product } from '../../types';
+import { Product } from '../../types/product.types';
 import { formatDistanceToNow } from 'date-fns';
 import { useMessageStore } from '../../stores/messageStore';
 import { useAuthStore } from '../../stores/authStore';
@@ -56,11 +56,11 @@ const AddToCartConfirmationModal: React.FC<AddToCartConfirmationModalProps> = ({
   );
 };
 
-export const ProductModal: React.FC<ProductModalProps> = ({ 
-  product, 
-  isOpen, 
-  onClose, 
-  showOwnerActions = false 
+export const ProductModal: React.FC<ProductModalProps> = ({
+  product,
+  isOpen,
+  onClose,
+  showOwnerActions = false
 }) => {
   const [selectedImage, setSelectedImage] = useState(0);
   const [showContactForm, setShowContactForm] = useState(false);
@@ -74,24 +74,27 @@ export const ProductModal: React.FC<ProductModalProps> = ({
 
   if (!isOpen || !product) return null;
 
-  const isOwner = user?.id === product.sellerId;
+  const isOwner = user?.id === product.seller_id;
   const canShowOwnerActions = showOwnerActions && isOwner;
   const isBuyer = user?.role === 'buyer';
 
   const handleContactSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     if (!user) {
       toast.error('Please login to contact seller');
       return;
     }
 
     try {
-      const conversationId = await createConversation(product.sellerId, product.id);
-      await sendMessage(conversationId, message, product.sellerId);
+      
+      const conversationId = await createConversation(product.seller_id, product.id);
+      console.log('Message: ' + message);
+      await sendMessage(conversationId, message, product.seller_id);
       toast.success('Message sent to seller!');
       setShowContactForm(false);
       setMessage('');
+      
     } catch (error) {
       toast.error('Failed to send message');
     }
@@ -108,19 +111,19 @@ export const ProductModal: React.FC<ProductModalProps> = ({
       return;
     }
 
-    if (!product.isActive || product.stock === 0) {
+    if (!product.is_active || product.quantity === 0) {
       toast.error('Product is currently unavailable');
       return;
     }
 
-    if (quantity > product.stock) {
-      toast.error(`Only ${product.stock} ${product.unit} available`);
+    if (quantity > product.quantity) {
+      toast.error(`Only ${product.quantity} ${product.unit} available`);
       return;
     }
 
     try {
       const added = await addToCart(product, quantity);
-      
+
       if (!added) {
         // Product already in cart, show confirmation modal
         setShowAddToCartModal(true);
@@ -164,8 +167,8 @@ export const ProductModal: React.FC<ProductModalProps> = ({
 
   const handleToggleActive = async () => {
     try {
-      await updateProduct(product.id, { isActive: !product.isActive });
-      toast.success(`Product ${product.isActive ? 'deactivated' : 'activated'} successfully`);
+      await updateProduct(product.id, { is_active: !product.is_active });
+      toast.success(`Product ${product.is_active ? 'deactivated' : 'activated'} successfully`);
     } catch (error) {
       toast.error('Failed to update product status');
     }
@@ -211,14 +214,16 @@ export const ProductModal: React.FC<ProductModalProps> = ({
               {/* Images */}
               <div>
                 <div className="aspect-square rounded-xl overflow-hidden mb-4 bg-gray-100">
-                  <img
-                    src={product.images[selectedImage]}
-                    alt={product.name}
-                    className="w-full h-full object-cover"
-                  />
+                  {product.images && product.images.length > 0 && (
+                    <img
+                      src={product.images[selectedImage]}
+                      alt={product.name}
+                      className="w-full h-full object-cover"
+                    />
+                  )}
                 </div>
-                
-                {product.images.length > 1 && (
+
+                {product.images && product.images.length > 1 && (
                   <div className="flex space-x-2 overflow-x-auto">
                     {product.images.map((image, index) => (
                       <button
@@ -244,17 +249,19 @@ export const ProductModal: React.FC<ProductModalProps> = ({
                     <span className="text-sm text-gray-600">per {product.unit}</span>
                   </div>
                   <p className="text-sm text-green-700 font-medium">
-                    {product.stock} {product.unit} available
+                    {product.quantity} {product.unit} available
                   </p>
                   <div className="mt-3 flex items-center space-x-2">
-                    <span className={`inline-block px-3 py-1 rounded-full text-sm font-medium ${
-                      product.condition === 'fresh' ? 'bg-green-100 text-green-800' :
-                      product.condition === 'good' ? 'bg-yellow-100 text-yellow-800' :
-                      'bg-orange-100 text-orange-800'
-                    }`}>
-                      {product.condition.charAt(0).toUpperCase() + product.condition.slice(1)} Quality
-                    </span>
-                    {!product.isActive && (
+                    {product.condition && (
+                      <span className={`inline-block px-3 py-1 rounded-full text-sm font-medium ${
+                        product.condition === 'fresh' ? 'bg-green-100 text-green-800' :
+                        product.condition === 'good' ? 'bg-yellow-100 text-yellow-800' :
+                        'bg-orange-100 text-orange-800'
+                      }`}>
+                        {product.condition.charAt(0).toUpperCase() + product.condition.slice(1)} Quality
+                      </span>
+                    )}
+                    {!product.is_active && (
                       <span className="px-3 py-1 bg-red-100 text-red-800 rounded-full text-sm font-medium">
                         Inactive
                       </span>
@@ -266,12 +273,12 @@ export const ProductModal: React.FC<ProductModalProps> = ({
                 <div className="space-y-3">
                   <div className="flex items-center text-gray-600">
                     <MapPin size={16} className="mr-2 flex-shrink-0" />
-                    <span>{product.location.address}</span>
+                    <span>{product.location ? product.location.address : 'N/A'}</span>
                   </div>
-                  
+
                   <div className="flex items-center text-gray-600">
                     <Calendar size={16} className="mr-2 flex-shrink-0" />
-                    <span>Harvested {formatDistanceToNow(product.harvestDate)} ago</span>
+                    <span>Harvested {formatDistanceToNow(product.harvest_date)} ago</span>
                   </div>
 
                   <div className="flex items-center space-x-1">
@@ -296,12 +303,12 @@ export const ProductModal: React.FC<ProductModalProps> = ({
                         <button
                           onClick={handleToggleActive}
                           className={`w-full py-2 px-4 rounded-lg font-medium transition-colors ${
-                            product.isActive
+                            product.is_active
                               ? 'bg-orange-500 text-white hover:bg-orange-600'
                               : 'bg-green-500 text-white hover:bg-green-600'
                           }`}
                         >
-                          {product.isActive ? 'Deactivate Listing' : 'Activate Listing'}
+                          {product.is_active ? 'Deactivate Listing' : 'Activate Listing'}
                         </button>
                         <div className="grid grid-cols-2 gap-2">
                           <button
@@ -337,7 +344,7 @@ export const ProductModal: React.FC<ProductModalProps> = ({
                           </button>
                           <span className="text-lg font-semibold w-16 text-center">{quantity}</span>
                           <button
-                            onClick={() => setQuantity(Math.min(product.stock, quantity + 1))}
+                            onClick={() => setQuantity(Math.min(product.quantity, quantity + 1))}
                             className="w-10 h-10 border border-gray-300 rounded-lg flex items-center justify-center hover:bg-gray-50"
                           >
                             +
@@ -355,14 +362,14 @@ export const ProductModal: React.FC<ProductModalProps> = ({
                         {isBuyer && (
                           <button
                             onClick={handleAddToCart}
-                            disabled={!product.isActive || product.stock === 0}
+                            disabled={!product.is_active || product.quantity === 0}
                             className="w-full flex items-center justify-center space-x-2 bg-green-500 text-white py-3 px-4 rounded-xl font-semibold hover:bg-green-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                           >
                             <ShoppingCart size={18} />
                             <span>Add to Cart</span>
                           </button>
                         )}
-                        
+
                         <button
                           onClick={() => setShowContactForm(true)}
                           className="w-full flex items-center justify-center space-x-2 border border-green-500 text-green-600 py-3 px-4 rounded-xl font-semibold hover:bg-green-50 transition-colors"
@@ -386,7 +393,7 @@ export const ProductModal: React.FC<ProductModalProps> = ({
                             required
                           />
                         </div>
-                        
+
                         <div className="flex space-x-3">
                           <button
                             type="submit"

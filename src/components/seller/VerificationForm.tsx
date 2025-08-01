@@ -4,23 +4,45 @@ import { useAuthStore } from '../../stores/authStore';
 import { FileUpload } from '../common/FileUpload';
 import { FileUploadResult } from '../../utils/fileUpload';
 import toast from 'react-hot-toast';
+import { UserRole } from '../../types/enums';
+import { Seller } from '../../types/user/user.types';
+import { UpdateProfileRequestDTO } from '../../types/user/user.request';
+import { LocationUpdateRequestDTO } from '../../types/location';
 
 export const VerificationForm: React.FC = () => {
-  const { user, updateProfile } = useAuthStore();
+  const { user, submitSellerVerification } = useAuthStore();
+
+  const seller = user?.role === UserRole.Seller ? (user as Seller) : null;
+
   const [formData, setFormData] = useState({
     fullName: user?.name || '',
-    farmName: '',
+    businessName: seller?.businessName || '',
     location: {
       lat: user?.location.lat || 0,
       lng: user?.location.lng || 0,
-      address: user?.location.address || ''
-    }
+      address: user?.location.address || '',
+    },
   });
+
   const [documents, setDocuments] = useState<FileUploadResult[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const handleFilesUploaded = (files: FileUploadResult[]) => {
     setDocuments(files);
+  };
+
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const { name, value } = e.target;
+    if (name === 'fullName') {
+      setFormData((prev) => ({ ...prev, fullName: value }));
+    } else if (name === 'businessName') {
+      setFormData((prev) => ({ ...prev, businessName: value }));
+    } else if (name === 'farmAddress') {
+      setFormData((prev) => ({
+        ...prev,
+        location: { ...prev.location, address: value },
+      }));
+    }
   };
 
   const getCurrentLocation = () => {
@@ -32,13 +54,13 @@ export const VerificationForm: React.FC = () => {
     navigator.geolocation.getCurrentPosition(
       (position) => {
         const { latitude, longitude } = position.coords;
-        setFormData(prev => ({
+        setFormData((prev) => ({
           ...prev,
           location: {
             lat: latitude,
             lng: longitude,
-            address: `Lat: ${latitude.toFixed(4)}, Lng: ${longitude.toFixed(4)}`
-          }
+            address: `Lat: ${latitude.toFixed(4)}, Lng: ${longitude.toFixed(4)}`,
+          },
         }));
         toast.success('Location detected successfully!');
       },
@@ -50,27 +72,19 @@ export const VerificationForm: React.FC = () => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     if (documents.length === 0) {
       toast.error('Please upload at least one document');
       return;
     }
 
     setIsSubmitting(true);
-    
+
     try {
-      // Simulate API call
-      await new Promise(resolve => setTimeout(resolve, 2000));
-      
-      // Update user profile with verification status
-      await updateProfile({
-        name: formData.fullName,
-        location: formData.location,
-        verificationStatus: 'pending'
-      });
-      
-      toast.success('Verification documents submitted successfully!');
+      await submitSellerVerification(formData.businessName, documents);
+      toast.success('Verification documents and profile submitted successfully!');
     } catch (error) {
+      console.error(error);
       toast.error('Failed to submit documents. Please try again.');
     } finally {
       setIsSubmitting(false);
@@ -81,30 +95,24 @@ export const VerificationForm: React.FC = () => {
     <div className="min-h-screen bg-gray-50 py-8">
       <div className="max-w-4xl mx-auto px-4">
         <div className="bg-white rounded-2xl shadow-xl overflow-hidden">
-          {/* Header */}
           <div className="bg-gradient-to-r from-green-500 to-green-600 px-8 py-6">
             <h1 className="text-3xl font-bold text-white mb-2">Farmer Verification</h1>
-            <p className="text-green-100">
-              Complete your verification to start selling on AgriSense
-            </p>
+            <p className="text-green-100">Complete your verification to start selling on AgriSense</p>
           </div>
 
-          {/* Form */}
           <form onSubmit={handleSubmit} className="p-8 space-y-8">
-            {/* Personal Information */}
             <div>
               <h2 className="text-xl font-semibold text-gray-900 mb-4">Personal Information</h2>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Full Legal Name *
-                  </label>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Full Legal Name *</label>
                   <div className="relative">
                     <User className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={20} />
                     <input
                       type="text"
+                      name="fullName"
                       value={formData.fullName}
-                      onChange={(e) => setFormData(prev => ({ ...prev, fullName: e.target.value }))}
+                      onChange={handleChange}
                       className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
                       required
                     />
@@ -112,15 +120,14 @@ export const VerificationForm: React.FC = () => {
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Farm Name (Optional)
-                  </label>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Farm Name (Optional)</label>
                   <div className="relative">
                     <Building className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={20} />
                     <input
                       type="text"
-                      value={formData.farmName}
-                      onChange={(e) => setFormData(prev => ({ ...prev, farmName: e.target.value }))}
+                      name="businessName"
+                      value={formData.businessName}
+                      onChange={handleChange}
                       placeholder="e.g., Dela Cruz Farm"
                       className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
                     />
@@ -129,7 +136,6 @@ export const VerificationForm: React.FC = () => {
               </div>
             </div>
 
-            {/* Farm Location */}
             <div>
               <h2 className="text-xl font-semibold text-gray-900 mb-4">Farm Location</h2>
               <div className="space-y-4">
@@ -144,49 +150,41 @@ export const VerificationForm: React.FC = () => {
                   </button>
                   <span className="text-sm text-gray-600">or enter manually below</span>
                 </div>
-
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">Latitude</label>
-                    <input
-                      type="number"
-                      step="0.000001"
-                      value={formData.location.lat}
-                      onChange={(e) => setFormData(prev => ({
-                        ...prev,
-                        location: { ...prev.location, lat: parseFloat(e.target.value) || 0 }
-                      }))}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">Longitude</label>
-                    <input
-                      type="number"
-                      step="0.000001"
-                      value={formData.location.lng}
-                      onChange={(e) => setFormData(prev => ({
-                        ...prev,
-                        location: { ...prev.location, lng: parseFloat(e.target.value) || 0 }
-                      }))}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">Address</label>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">Farm Address *</label>
                     <div className="relative">
                       <MapPin className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={20} />
                       <input
                         type="text"
+                        name="farmAddress"
                         value={formData.location.address}
-                        onChange={(e) => setFormData(prev => ({
-                          ...prev,
-                          location: { ...prev.location, address: e.target.value }
-                        }))}
-                        placeholder="Barangay, Municipality, Province"
-                        className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
+                        onChange={handleChange}
+                        className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
+                        placeholder="Enter full address"
+                        required
+                      />
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">Latitude</label>
+                      <input
+                        type="number"
+                        step="any"
+                        value={formData.location.lat}
+                        readOnly
+                        className="w-full px-4 py-3 border border-gray-300 rounded-lg bg-gray-100 cursor-not-allowed"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">Longitude</label>
+                      <input
+                        type="number"
+                        step="any"
+                        value={formData.location.lng}
+                        readOnly
+                        className="w-full px-4 py-3 border border-gray-300 rounded-lg bg-gray-100 cursor-not-allowed"
                       />
                     </div>
                   </div>
@@ -194,17 +192,13 @@ export const VerificationForm: React.FC = () => {
               </div>
             </div>
 
-            {/* Document Uploads */}
             <div>
-              <h2 className="text-xl font-semibold text-gray-900 mb-4">Required Documents</h2>
               <FileUpload
-                onFilesUploaded={handleFilesUploaded}
-                maxFiles={10}
-                acceptedTypes={['image/*', '.pdf']}
-                title="Upload Verification Documents"
+                title="Verification Documents"
                 description="Upload your government ID, proof of ownership, and farm photos"
+                onFilesUploaded={handleFilesUploaded}
               />
-              
+
               <div className="mt-4 bg-blue-50 border border-blue-200 rounded-lg p-4">
                 <h3 className="font-semibold text-blue-900 mb-2">Required Documents:</h3>
                 <ul className="text-sm text-blue-800 space-y-1">
@@ -216,7 +210,6 @@ export const VerificationForm: React.FC = () => {
               </div>
             </div>
 
-            {/* Submit Button */}
             <div className="flex justify-end">
               <button
                 type="submit"

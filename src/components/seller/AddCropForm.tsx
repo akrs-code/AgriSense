@@ -3,9 +3,11 @@ import { Save, X, MapPin, Calendar, Package, DollarSign, FileText, Navigation } 
 import { useAuthStore } from '../../stores/authStore';
 import { useProductStore } from '../../stores/productStore';
 import { FileUpload } from '../common/FileUpload';
-import { FileUploadResult } from '../../utils/fileUpload';
+import { FileUploadResult } from '../../utils/fileUpload1';
 import toast from 'react-hot-toast';
-
+import { CreateProductDTO } from '../../types/product.types';
+import { ProductCondition } from '../../types/enums';
+import { parseISO } from 'date-fns/fp';
 interface AddCropFormProps {
   onClose: () => void;
   onSuccess: () => void;
@@ -82,11 +84,17 @@ export const AddCropForm: React.FC<AddCropFormProps> = ({ onClose, onSuccess }) 
       return;
     }
 
-    if (!formData.name || !formData.variety || !formData.quantity || !formData.price) {
+    if (!formData.name || 
+      !formData.variety || 
+      !formData.quantity || 
+      !formData.price ||
+      !formData.harvestDate) {
       toast.error('Please fill in all required fields');
       return;
     }
-
+    if(parseInt(formData.quantity) < 0){
+      toast.error('Invalid quantity.');
+    }
     if (uploadedFiles.length === 0) {
       toast.error('Please upload at least one image');
       return;
@@ -105,22 +113,22 @@ export const AddCropForm: React.FC<AddCropFormProps> = ({ onClose, onSuccess }) 
         setIsSubmitting(false);
         return;
       }
-
-      await addProduct({
-        sellerId: user!.id,
+      const newProduct: CreateProductDTO = {
+        seller_id: user!.id,
         name: formData.name,
-        category: 'Grains', // Default category - could be made selectable
-        variety: formData.variety,
-        description: formData.description,
-        price: parseFloat(formData.price),
+        variety: formData.variety, 
+        quantity: parseInt(formData.quantity),
         unit: formData.unit,
-        stock: parseInt(formData.quantity),
-        images: imageUrls,
+        price: parseFloat(formData.price),
+        description: formData.description,
+        harvest_date: parseISO(formData.harvestDate),
         location: formData.location,
-        harvestDate: new Date(formData.harvestDate),
-        condition: 'fresh' as const,
-        isActive: true
-      });
+        category: 'Grains',
+        images: imageUrls,
+        condition: ProductCondition.Fresh,
+        is_active: true
+      }
+      await addProduct(newProduct);
 
       toast.success('Crop added successfully!');
       onSuccess();

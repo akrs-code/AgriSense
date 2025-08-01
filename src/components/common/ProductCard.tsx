@@ -1,6 +1,6 @@
 import React from 'react';
 import { MapPin, Calendar, Star, Heart } from 'lucide-react';
-import { Product } from '../../types';
+import { Product } from '../../types/product.types';
 import { formatDistanceToNow } from 'date-fns';
 
 interface ProductCardProps {
@@ -9,10 +9,10 @@ interface ProductCardProps {
   showActions?: boolean;
 }
 
-export const ProductCard: React.FC<ProductCardProps> = ({ 
-  product, 
-  onView, 
-  showActions = true 
+export const ProductCard: React.FC<ProductCardProps> = ({
+  product,
+  onView,
+  showActions = true
 }) => {
   const getConditionColor = (condition: string) => {
     switch (condition) {
@@ -27,22 +27,30 @@ export const ProductCard: React.FC<ProductCardProps> = ({
     <div className="bg-white rounded-xl shadow-sm border border-neutral-border overflow-hidden hover:shadow-md transition-all duration-300 group">
       {/* Image */}
       <div className="relative h-48 overflow-hidden">
-        <img
-          src={product.images[0]}
-          alt={product.name}
-          className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
-        />
+        {product.images && product.images.length > 0 ? (
+          <img
+            src={product.images[0]}
+            alt={product.name}
+            className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+          />
+        ) : (
+          <div className="w-full h-full bg-gray-200 flex items-center justify-center text-gray-500">
+            No Image
+          </div>
+        )}
         <div className="absolute top-3 left-3">
-          <span className={`px-2 py-1 rounded-full text-xs font-medium ${getConditionColor(product.condition)}`}>
-            {product.condition.charAt(0).toUpperCase() + product.condition.slice(1)}
-          </span>
+          {product.condition && (
+            <span className={`px-2 py-1 rounded-full text-xs font-medium ${getConditionColor(product.condition)}`}>
+              {product.condition.charAt(0).toUpperCase() + product.condition.slice(1)}
+            </span>
+          )}
         </div>
         <div className="absolute top-3 right-3">
           <button className="p-2 bg-white/90 backdrop-blur-sm rounded-full hover:bg-white transition-colors">
             <Heart size={16} className="text-text-muted hover:text-error" />
           </button>
         </div>
-        {product.stock === 0 && (
+        {product.quantity === 0 && (
           <div className="absolute inset-0 bg-black bg-opacity-50 flex items-center justify-center">
             <span className="text-white font-bold text-lg">OUT OF STOCK</span>
           </div>
@@ -67,12 +75,12 @@ export const ProductCard: React.FC<ProductCardProps> = ({
         <div className="space-y-2 mb-4">
           <div className="flex items-center text-xs text-text-muted">
             <MapPin size={12} className="mr-1 flex-shrink-0" />
-            <span className="truncate">{product.location.address}</span>
+            <span className="truncate">{product.location ? product.location.address : 'N/A'}</span>
           </div>
-          
+
           <div className="flex items-center text-xs text-text-muted">
             <Calendar size={12} className="mr-1 flex-shrink-0" />
-            <span>Harvested {formatDistanceToNow(product.harvestDate)} ago</span>
+            <span>Harvested {formatDistanceToNow(product.harvest_date)} ago</span>
           </div>
 
           <div className="flex items-center justify-between">
@@ -81,7 +89,7 @@ export const ProductCard: React.FC<ProductCardProps> = ({
               <span className="text-xs text-text-muted">4.8 (23 reviews)</span>
             </div>
             <span className="text-xs text-text-muted font-medium">
-              {product.stock} {product.unit} available
+              {product.quantity} {product.unit} available
             </span>
           </div>
         </div>

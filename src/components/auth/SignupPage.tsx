@@ -3,12 +3,13 @@ import { Link, useNavigate } from 'react-router-dom';
 import { Phone, User, Mail, Lock, Eye, EyeOff, Loader2, ArrowRight, Sprout } from 'lucide-react';
 import { useAuthStore } from '../../stores/authStore';
 import toast from 'react-hot-toast';
+import { UserRole } from '../../types/enums';
 
 export const SignupPage: React.FC = () => {
   const navigate = useNavigate();
   const [formData, setFormData] = useState({
     phone: '',
-    role: '' as 'buyer' | 'seller' | '',
+    role: '' as UserRole,
     name: '',
     email: '',
     password: '',
@@ -43,7 +44,6 @@ export const SignupPage: React.FC = () => {
         phone: formData.phone,
         password: formData.password,
         role: formData.role,
-        businessName: formData.role === 'seller' ? `${formData.name}'s Farm` : undefined
       });
       
       toast.success('Account created successfully!');
@@ -113,7 +113,7 @@ export const SignupPage: React.FC = () => {
               <div className="grid grid-cols-2 gap-3">
                 <button
                   type="button"
-                  onClick={() => setFormData({ ...formData, role: 'buyer' })}
+                  onClick={() => setFormData({ ...formData, role: UserRole.Buyer })}
                   className={`p-4 rounded-xl border-2 transition-all ${
                     formData.role === 'buyer'
                       ? 'border-primary bg-primary-light text-primary'
@@ -128,7 +128,7 @@ export const SignupPage: React.FC = () => {
                 </button>
                 <button
                   type="button"
-                  onClick={() => setFormData({ ...formData, role: 'seller' })}
+                  onClick={() => setFormData({ ...formData, role: UserRole.Seller })}
                   className={`p-4 rounded-xl border-2 transition-all ${
                     formData.role === 'seller'
                       ? 'border-primary bg-primary-light text-primary'

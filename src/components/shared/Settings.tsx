@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { User, Globe, Bell, LogOut, Save, Camera, MapPin, Phone, Mail, Wallet, Upload, X } from 'lucide-react';
 import { useAuthStore } from '../../stores/authStore';
-import { Seller } from '../../types';
+// import { Seller } from '../../types'; <-- Jairus: No longer necessary
 import toast from 'react-hot-toast';
 
 export const Settings: React.FC = () => {
@@ -24,11 +24,18 @@ export const Settings: React.FC = () => {
     marketingEmails: false
   });
 
+  // const [eWalletData, setEWalletData] = useState({ 
+  //   provider: (user as Seller)?.eWalletDetails?.provider || '',
+  //   accountNumber: (user as Seller)?.eWalletDetails?.accountNumber || '',
+  //   accountName: (user as Seller)?.eWalletDetails?.accountName || '',
+  //   qrCodeImage: (user as Seller)?.eWalletDetails?.qrCodeImage || ''
+  // });
   const [eWalletData, setEWalletData] = useState({
-    provider: (user as Seller)?.eWalletDetails?.provider || '',
-    accountNumber: (user as Seller)?.eWalletDetails?.accountNumber || '',
-    accountName: (user as Seller)?.eWalletDetails?.accountName || '',
-    qrCodeImage: (user as Seller)?.eWalletDetails?.qrCodeImage || ''
+    // jairus: No need to cast to Seller anymore, as eWalletDetails is on BaseUser
+    provider: user?.eWalletDetails?.provider || '',
+    accountNumber: user?.eWalletDetails?.accountNumber || '',
+    accountName: user?.eWalletDetails?.accountName || '',
+    qrCodeImage: user?.eWalletDetails?.qrCodeImage || ''
   });
 
   const [qrCodeFile, setQrCodeFile] = useState<File | null>(null);
